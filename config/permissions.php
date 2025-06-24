@@ -1,0 +1,91 @@
+<?php
+return [
+    'actions' => [
+        'all' => 'Xem tất cả',
+        'index' => 'Xem',
+        'create' => 'Thêm',
+        'edit' => 'Sửa',
+        'destroy' => 'Xóa',
+        'administrator' => 'QTV',
+    ],
+    'modules' => [
+        'dashboard' => 'Tổng quan',
+        'customer_groups' => 'Nhóm khách hàng',
+        'customers' => 'Khách hàng',
+        'jobs' => 'Quản lý job order',
+        'candidates' => 'Quản lý ứng viên',
+        'industries' => 'Quản lý ngành nghề',
+        'configurations' => 'Cấu hình hệ thống',
+        'contracts' => 'Quản lý hợp đồng',
+        'activity_logs' => 'Quản lý logs',
+        'roles' => 'Nhóm thành viên',
+        'users' => 'Thành viên',
+    ],
+    'dashboard' => [
+        'all' => 'dashboard_all',
+        'index' => 'dashboard_index',
+    ],
+    'roles' => [
+        'index' => 'roles_index',
+        'create' => 'roles_create',
+        'edit' => 'roles_edit',
+        'destroy' => 'roles_destroy',
+    ],
+    'users' => [
+        'index' => 'users_index',
+        'create' => 'users_create',
+        'edit' => 'users_edit',
+        'destroy' => 'users_destroy',
+    ],
+    'customers' => [
+        'all' => 'customers_all',
+        'index' => 'customers_index',
+        'create' => 'customers_create',
+        'edit' => 'customers_edit',
+        'destroy' => 'customers_destroy',
+    ],
+    'customer_groups' => [
+        'all' => 'customer_groups_all',
+        'index' => 'customer_groups_index',
+        'create' => 'customer_groups_create',
+        'edit' => 'customer_groups_edit',
+        'destroy' => 'customer_groups_destroy',
+    ],
+    'jobs' => [
+        'all' => 'jobs_all',
+        'index' => 'jobs_index',
+        'create' => 'jobs_create',
+        'edit' => 'jobs_edit',
+        'destroy' => 'jobs_destroy',
+    ],
+    'candidates' => [
+        'all' => 'candidates_all',
+        'index' => 'candidates_index',
+        'create' => 'candidates_create',
+        'edit' => 'candidates_edit',
+        'destroy' => 'candidates_destroy',
+        'administrator' => 'candidates_administrator',
+    ],
+    'industries' => [
+        'all' => 'industries_all',
+        'index' => 'industries_index',
+        'create' => 'industries_create',
+        'edit' => 'industries_edit',
+        'destroy' => 'industries_destroy',
+    ],
+    'contracts' => [
+        'all' => 'contracts_all',
+        'index' => 'contracts_index',
+        'create' => 'contracts_create',
+        'edit' => 'contracts_edit',
+        'destroy' => 'contracts_destroy',
+    ],
+    'configurations' => [
+        'edit' => 'configurations_edit',
+    ],
+    'activity_logs' => [
+        'all' => 'activity_logs_all',
+        'index' => 'activity_logs_index',
+    ],
+
+];

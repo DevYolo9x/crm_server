@@ -1,0 +1,47 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Candidate extends Model
+{
+    use HasFactory;
+    protected $fillable = [
+        'code',
+        'full_name',
+        'phone',
+        'email',
+        'industry_id',
+        'education',
+        'language',
+        'language_other',
+        'current_location',
+        'experience_summary',
+        'cv_no_contact',
+        'cv_with_contact',
+        'expiry_date',
+        'created_by'
+    ];
+    public function industry()
+    {
+        return $this->belongsTo(Industry::class);
+    }
+    public function createBy()
+    {
+        return $this->hasOne(User::class, 'id', 'created_by');
+    }
+    public function candidateJobs()
+    {
+        return $this->hasOne(CandidateJob::class, 'id', 'candidate_id');
+    }
+    public function desiredLocations()
+    {
+        return $this->hasMany(CandidateDesiredLocation::class, 'candidate_id');
+    }
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'candidate_users');
+    }
+}
