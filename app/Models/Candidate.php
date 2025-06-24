@@ -42,6 +42,6 @@ class Candidate extends Model
     }
     public function users()
     {
-        return $this->belongsToMany(User::class, 'candidate_users');
+        return $this->belongsToMany(User::class, 'candidate_users', 'candidate_id', 'user_id');
     }
 }

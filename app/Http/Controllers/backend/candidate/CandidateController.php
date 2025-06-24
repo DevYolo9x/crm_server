@@ -116,9 +116,12 @@ class CandidateController extends Controller
             // Ẩn - Hiện: Thông tin nếu không phải người tạo, hoặc chưa được admin phân quyền
             if( $user->can('candidates_all') && !$user->can('candidates_administrator') ){
                 $data = $data->through(function ($item) use ($user) {
-                    if ($item->created_by !== $user->id) {
+                    $hasAccess = $item->users->contains('id', $user->id);
+                    if ($item->created_by !== $user->id && !$hasAccess) {
                         $item->email = $this->maskEmail($item->email);
                         $item->phone = $this->maskPhone($item->phone);
+                        $item->cv_no_contact = '';
+                        $item->cv_with_contact = '';
                     }
                     return $item;
                 });
@@ -274,11 +277,13 @@ class CandidateController extends Controller
                 return $query->where('created_by', $user->id);
             })
             ->first();
-
+        $hasAccess = $candidate->users->contains('id', $user->id);
         // Ẩn - Hiện: Thông tin nếu không phải người tạo, hoặc chưa được admin phân quyền
-        if ($candidate->created_by !== $user->id) {
+        if ($candidate->created_by !== $user->id && !$hasAccess) {
             $candidate->email = $this->maskEmail($candidate->email);
             $candidate->phone = $this->maskPhone($candidate->phone);
+            $candidate->cv_no_contact = '';
+            $candidate->cv_with_contact = '';
         }
 
         if (empty($candidate)) {
@@ -307,10 +312,10 @@ class CandidateController extends Controller
     {
         $candidateID = (int)$request->candidate_id;
         $users = $request->users;
-        if( $candidateID > 0 && isset($users) && is_array($users) && count($users) ){
+        if( $candidateID > 0 ){
             $userIds = collect($users)->pluck('id')->toArray();
-            // Xoá bỏ những nhân viên không nằm trong mảng
-            CandidateUser::whereNotIn('user_id', $userIds)->where('candidate_id', $candidateID)->delete();
+            // Xoá bỏ những nhân viên
+            CandidateUser::where('candidate_id', $candidateID)->delete();
             // Lưu những thông tin mới
             foreach ( $userIds as $userid ){
                 $_data = [
@@ -319,7 +324,9 @@ class CandidateController extends Controller
                 ];
                 CandidateUser::create($_data);
             }
-            return response()->json(['message' => 'Tạo thông tin thành công!']);
+            // Lấy lại ứng viên đã cập nhật kèm danh sách user
+            $candidate = Candidate::with('industry:id,title')->with('createBy:id,name')->with('users')->find($candidateID);
+            return response()->json(['message' => 'Tạo thông tin thành công!', 'candidate' => new CandidateResource($candidate)]);
         } else {
             return response()->json(['message' => 'Thông tin không chính xác!']);
         }

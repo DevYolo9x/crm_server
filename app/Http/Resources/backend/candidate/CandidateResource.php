@@ -25,6 +25,12 @@ class CandidateResource extends JsonResource
                     'location_id' => $location->location_id,
                 ];
             }),
+            'users' => $this->users->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->code . ' - ' . $user->name
+                ];
+            }),
             'experience_summary' => $this->experience_summary,
             'industry_id' => $this->industry_id,
             'cv_no_contact' => $this->cv_no_contact ? asset($this->cv_no_contact) : null,
