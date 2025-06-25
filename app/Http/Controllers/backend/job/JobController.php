@@ -96,7 +96,7 @@ class JobController extends Controller
             'users' => 'required',
         ], [
             'customer_id.required' => 'Khách hàng là trường bắt buộc. ',
-            'job_title.required' => 'ID JOB là trường bắt buộc. ',
+            'job_title.required' => 'Tiêu đề JOB là trường bắt buộc. ',
             'position.required' => 'Vị trí tuyển dụng là trường bắt buộc. ',
             'locations.required' => 'Địa điểm làm việc là trường bắt buộc. ',
             'company_info.required' => 'Thông tin công ty là trường bắt buộc. ',

@@ -14,6 +14,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class CandidateController extends Controller
 {
@@ -260,8 +261,10 @@ class CandidateController extends Controller
         $candidate->update($data);
         $candidate->desiredLocations()->delete();
         $desired_location = json_decode($request->input('desired_location'));
-        foreach ($desired_location as $location) {
-            $candidate->desiredLocations()->create(['location_id' => $location]);
+        if( isset($desired_location) && is_array($desired_location) && count($desired_location) ){
+            foreach ($desired_location as $location) {
+                $candidate->desiredLocations()->create(['location_id' => $location]);
+            }
         }
         $this->logActivity('update', Candidate::class, $candidate);
         return response()->json([
@@ -330,6 +333,52 @@ class CandidateController extends Controller
         } else {
             return response()->json(['message' => 'Thông tin không chính xác!']);
         }
+    }
+
+    public function checkExists(Request $request)
+    {
+        // Validate dữ liệu đầu vào
+        $result = [
+            'phone' => ['message' => '', 'status' => false],
+            'email' => ['message' => '', 'status' => false],
+        ];
+
+        try {
+            $validated = $request->validate([
+                'phone' => ['nullable', 'regex:/^0[0-9]{9}$/'], // Ví dụ 10 số
+                'email' => ['nullable', 'email']
+            ], [
+                'phone.regex' => 'Số điện thoại phải là dạng số và gồm 10 ký tự',
+                'email.email' => 'Email không đúng định dạng',
+            ]);
+        } catch (ValidationException $e) {
+            $errors = $e->errors(); // Trả về mảng: ['phone' => [...], 'email' => [...]]
+    
+            if (isset($errors['phone'])) {
+                $result['phone']['status'] = true;
+                $result['phone']['message'] = '('.$errors['phone'][0].')'; // lấy message đầu tiên
+            }
+            if (isset($errors['email'])) {
+                $result['email']['status'] = true;
+                $result['email']['message'] = '('.$errors['email'][0].')';
+            }
+    
+            return response()->json($result); // status code 422: Unprocessable Entity
+        }
+
+        if (!empty($validated['phone'])) {
+            $exists = Candidate::where('phone', $validated['phone'])->exists();
+            $result['phone']['status'] = $exists;
+            $result['phone']['message'] = $exists ? '(Số điện thoại đã tồn tại)' : '';
+        }
+
+        if (!empty($validated['email'])) {
+            $exists = Candidate::where('email', $validated['email'])->exists();
+            $result['email']['status'] = $exists;
+            $result['email']['message'] = $exists ? '(Email đã tồn tại)' : '';
+        }
+
+        return response()->json($result);
     }
 
     public function maskPhone($phone)
