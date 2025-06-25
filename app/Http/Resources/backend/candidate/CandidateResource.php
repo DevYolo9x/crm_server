@@ -31,8 +31,14 @@ class CandidateResource extends JsonResource
                     'name' => $user->code . ' - ' . $user->name
                 ];
             }),
+            'industry_id' => $this->industries->map(function ($industry) {
+                return [
+                    'id' => $industry->id,
+                    'title' => $industry->title
+                ];
+            }),
             'experience_summary' => $this->experience_summary,
-            'industry_id' => $this->industry_id,
+            //'industry_id' => $this->industry_id,
             'cv_no_contact' => $this->cv_no_contact ? asset($this->cv_no_contact) : null,
             'cv_with_contact' => $this->cv_with_contact ? asset($this->cv_with_contact) : null,
             'expiry_date' => date('Y-m-d H:i:s', strtotime($this->expiry_date)),

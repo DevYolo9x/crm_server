@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\backend\candidate\CandidateCollection;
 use App\Http\Resources\backend\candidate\CandidateResource;
 use App\Models\Candidate;
+use App\Models\CandidateIndustry;
 use App\Models\Configuration;
 use App\Traits\LogsActivity;
 use App\Models\CandidateUser;
@@ -78,7 +79,7 @@ class CandidateController extends Controller
         $created_by = $request->input('created_by');
         $language = $request->input('language'); // Thêm bộ lọc ngoại ngữ
         $desired_locations = $request->input('desired_locations'); // Thêm bộ lọc khu vực mong muốn (mảng)
-        $data = Candidate::with('industry:id,title')->with('createBy:id,name')->with('users')->orderBy('id', 'desc')
+        $data = Candidate::with('industry:id,title')->with('createBy:id,name')->with('users')->with('industries')->orderBy('id', 'desc')
             ->when(
                 $keyword,
                 fn($query) => $query->where('id', 'like', "%{$keyword}%")
@@ -136,7 +137,7 @@ class CandidateController extends Controller
             'full_name' => 'required|string|max:255',
             'phone' => 'required|unique:candidates',
             'email' => 'required|email|max:255|unique:candidates',
-            'industry_id' => 'required|exists:industries,id|gt:0',
+            //'industry_id' => 'required|exists:industries,id|gt:0',
             'current_location' => 'required',
             'desired_location' => 'required',
             'cv_no_contact' => 'nullable|file|mimes:pdf|max:10240',
@@ -152,9 +153,9 @@ class CandidateController extends Controller
             'email.required' => 'Email là trường bắt buộc. ',
             'email.email' => 'Email không đúng định dạng. ',
             'email.unique' => 'Email đã tồn tại. ',
-            'industry_id.required' => 'Nhóm ngành nghề là trường bắt buộc. ',
-            'industry_id.gt' => 'Nhóm ngành nghề là trường bắt buộc. ',
-            'industry_id.exists' => 'Nhóm ngành nghề không tồn tại. ',
+            //'industry_id.required' => 'Nhóm ngành nghề là trường bắt buộc. ',
+            //'industry_id.gt' => 'Nhóm ngành nghề là trường bắt buộc. ',
+            //'industry_id.exists' => 'Nhóm ngành nghề không tồn tại. ',
             'current_location.required' => 'Chỗ ở hiện tại là trường bắt buộc. ',
             'desired_location.required' => 'Khu vực mong muốn làm việc là trường bắt buộc. ',
             'cv_no_contact.mimes' => 'File CV không có thông tin liên hệ không đúng định dạng. ',
@@ -162,6 +163,7 @@ class CandidateController extends Controller
             'cv_no_contact.max' => 'Dung lượng File CV không có thông tin liên hệ không quá 10MB. ',
             'cv_with_contact.max' => 'Dung lượng File CV không có thông tin liên hệ không quá 10MB. ',
         ]);
+        $industryIds = $request->industry_id;
         $lastCustomer = Candidate::orderBy('id', 'desc')->first();
         if ($lastCustomer) {
             $lastCode = (int) filter_var($lastCustomer->code, FILTER_SANITIZE_NUMBER_INT); // Lấy số từ mã KHxxx
@@ -185,6 +187,14 @@ class CandidateController extends Controller
         foreach ($desired_location as $location) {
             $candidate->desiredLocations()->create(['location_id' => $location]);
         }
+
+        // Tạo danh sách nhóm ngành nghề
+        if( isset($industryIds) && is_array($industryIds) && count($industryIds) ){
+            foreach( $industryIds as $industryId ) {
+                CandidateIndustry::create(['candidate_id' => $candidate->id, 'industry_id' => $industryId]);
+            }
+        }
+
         $this->logActivity('create', Candidate::class, $candidate);
         return response()->json([
             'message' => 'Thêm mới ứng viên thành công',
@@ -209,6 +219,8 @@ class CandidateController extends Controller
     }
     public function update(Request $request, $id)
     {
+        $arrDelete = CandidateIndustry::where('candidate_id', $id)->pluck('id')->toArray();
+        CandidateIndustry::whereIn('id', $arrDelete)->delete();
         $user = auth()->user();
         $candidate = Candidate::where(['id' => $id])
             ->when(( $user->can('candidates_all') && !$user->can('candidates_administrator') ), function ($query) use ($user) {
@@ -222,7 +234,7 @@ class CandidateController extends Controller
             'full_name' => 'required|string|max:255',
             'phone' => 'required|string|max:20|unique:candidates,phone,' . $candidate->id,
             'email' => 'required|email|max:255|unique:candidates,email,' . $candidate->id,
-            'industry_id' => 'required|exists:industries,id|gt:0',
+            //'industry_id' => 'required|exists:industries,id|gt:0',
             'current_location' => 'required',
             'desired_location' => 'required',
             'cv_no_contact' => 'nullable|file|mimes:pdf|max:10240',
@@ -238,9 +250,9 @@ class CandidateController extends Controller
             'email.required' => 'Email là trường bắt buộc. ',
             'email.email' => 'Email không đúng định dạng. ',
             'email.unique' => 'Email đã tồn tại. ',
-            'industry_id.required' => 'Nhóm ngành nghề là trường bắt buộc. ',
-            'industry_id.gt' => 'Nhóm ngành nghề là trường bắt buộc. ',
-            'industry_id.exists' => 'Nhóm ngành nghề không tồn tại. ',
+            //'industry_id.required' => 'Nhóm ngành nghề là trường bắt buộc. ',
+            //'industry_id.gt' => 'Nhóm ngành nghề là trường bắt buộc. ',
+            //'industry_id.exists' => 'Nhóm ngành nghề không tồn tại. ',
             'current_location.required' => 'Chỗ ở hiện tại là trường bắt buộc. ',
             'desired_location.required' => 'Khu vực mong muốn làm việc là trường bắt buộc. ',
             'cv_no_contact.mimes' => 'File CV không có thông tin liên hệ không đúng định dạng. ',
@@ -264,6 +276,14 @@ class CandidateController extends Controller
         if( isset($desired_location) && is_array($desired_location) && count($desired_location) ){
             foreach ($desired_location as $location) {
                 $candidate->desiredLocations()->create(['location_id' => $location]);
+            }
+        }
+
+        // Tạo danh sách nhóm ngành nghề
+        $industryIds = $request->industry_id;
+        if( isset($industryIds) && is_array($industryIds) && count($industryIds) ){
+            foreach( $industryIds as $industryId ) {
+                CandidateIndustry::create(['candidate_id' => $candidate->id, 'industry_id' => $industryId]);
             }
         }
         $this->logActivity('update', Candidate::class, $candidate);

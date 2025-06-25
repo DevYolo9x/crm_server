@@ -44,4 +44,9 @@ class Candidate extends Model
     {
         return $this->belongsToMany(User::class, 'candidate_users', 'candidate_id', 'user_id');
     }
+    
+    public function industries()
+    {
+        return $this->belongsToMany(Industry::class, 'candidate_industries', 'candidate_id', 'industry_id');
+    }
 }
