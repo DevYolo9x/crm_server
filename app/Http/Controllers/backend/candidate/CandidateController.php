@@ -16,6 +16,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
+
 
 class CandidateController extends Controller
 {
@@ -75,7 +77,7 @@ class CandidateController extends Controller
         $user = auth()->user();
         $perPage = env('PER_PAGE', 20);
         $keyword = $request->input('keyword');
-        $industry_id = $request->input('industry_id');
+        $industry_ids = $request->input('industry_id');
         $created_by = $request->input('created_by');
         $language = $request->input('language'); // Thêm bộ lọc ngoại ngữ
         $desired_locations = $request->input('desired_locations'); // Thêm bộ lọc khu vực mong muốn (mảng)
@@ -89,8 +91,10 @@ class CandidateController extends Controller
                     ->orWhere('code', 'like', "%{$keyword}%")
             )
             ->when(
-                $industry_id,
-                fn($query) => $query->where('industry_id', $industry_id)
+                !empty($industry_ids),
+                fn($query) => $query->whereHas('industries', function ($q) use ($industry_ids) {
+                    $q->whereIn('industries.id', $industry_ids);
+                })
             )
             ->when(
                 $created_by,
@@ -116,18 +120,32 @@ class CandidateController extends Controller
             $data = $data->paginate($perPage);
 
             // Ẩn - Hiện: Thông tin nếu không phải người tạo, hoặc chưa được admin phân quyền
-            if( $user->can('candidates_all') && !$user->can('candidates_administrator') ){
-                $data = $data->through(function ($item) use ($user) {
-                    $hasAccess = $item->users->contains('id', $user->id);
-                    if ($item->created_by !== $user->id && !$hasAccess) {
-                        $item->email = $this->maskEmail($item->email);
-                        $item->phone = $this->maskPhone($item->phone);
-                        $item->cv_no_contact = '';
-                        $item->cv_with_contact = '';
-                    }
-                    return $item;
-                });
-            }
+            $data = $data->through(function ($item) use ($user) {
+                $hasAccess = $item->users->contains('id', $user->id);
+                $canViewAll = $user->can('candidates_all');
+                $isAdmin = $user->can('candidates_administrator');
+                $isCreator = $item->created_by === $user->id;
+            
+                // Mặc định được update
+                $item->permission_update = true;
+            
+                if ($canViewAll && !$isAdmin && !$isCreator && !$hasAccess) {
+                    // Nếu không được quyền, thì ẩn thông tin và không cho update
+                    $item->email = $this->maskEmail($item->email);
+                    $item->phone = $this->maskPhone($item->phone);
+                    $item->cv_no_contact = '';
+                    $item->cv_with_contact = '';
+                    $item->cv_no_contact_en = '';
+                    $item->cv_with_contact_en = '';
+                    $item->cv_no_contact_cn = '';
+                    $item->cv_with_contact_cn = '';
+                    $item->cv_no_contact_kr = '';
+                    $item->cv_with_contact_kr = '';
+                    $item->permission_update = false;
+                }
+            
+                return $item;
+            });
         return response()->json(new CandidateCollection($data));
     }
 
@@ -195,6 +213,16 @@ class CandidateController extends Controller
             }
         }
 
+        // Cập nhật lại phân quyển button update
+        $user = Auth::user();
+        $candidate->permission_update = true;
+        $canViewAll = $user->can('candidates_all');
+        $isAdmin = $user->can('candidates_administrator');
+        $isCreator = $candidate->created_by === $user->id;
+        if ($canViewAll && !$isAdmin && !$isCreator) {
+            $candidate->permission_update = false;
+        }
+
         $this->logActivity('create', Candidate::class, $candidate);
         return response()->json([
             'message' => 'Thêm mới ứng viên thành công',
@@ -220,7 +248,7 @@ class CandidateController extends Controller
     public function update(Request $request, $id)
     {
         $arrDelete = CandidateIndustry::where('candidate_id', $id)->pluck('id')->toArray();
-        CandidateIndustry::whereIn('id', $arrDelete)->delete();
+        CandidateIndustry::whereIn('id', $arrDelete)->forceDelete();
         $user = auth()->user();
         $candidate = Candidate::where(['id' => $id])
             ->when(( $user->can('candidates_all') && !$user->can('candidates_administrator') ), function ($query) use ($user) {
@@ -230,6 +258,15 @@ class CandidateController extends Controller
         if (empty($candidate)) {
             return response()->json(['message' => 'Ứng viên không tồn tại'], 404);
         }
+
+        $hasAccess = $candidate->users->contains('id', $user->id);
+        $canViewAll = $user->can('candidates_all');
+        $isAdmin = $user->can('candidates_administrator');
+        $isCreator = $candidate->created_by === $user->id;
+        if ($canViewAll && !$isAdmin && !$isCreator && !$hasAccess) {
+            return response()->json(['message' => 'Bạn không có quyền truy cập'], 404);
+        }
+
         $data = $request->validate([
             'full_name' => 'required|string|max:255',
             'phone' => 'required|string|max:20|unique:candidates,phone,' . $candidate->id,
@@ -286,6 +323,17 @@ class CandidateController extends Controller
                 CandidateIndustry::create(['candidate_id' => $candidate->id, 'industry_id' => $industryId]);
             }
         }
+
+        // Cập nhật lại phân quyển button update
+        $candidate->permission_update = true;
+        $hasAccess = $candidate->users->contains('id', $user->id);
+        $canViewAll = $user->can('candidates_all');
+        $isAdmin = $user->can('candidates_administrator');
+        $isCreator = $candidate->created_by === $user->id;
+        if ($canViewAll && !$isAdmin && !$isCreator && !$hasAccess) {
+            $candidate->permission_update = false;
+        }
+
         $this->logActivity('update', Candidate::class, $candidate);
         return response()->json([
             'message' => 'Cập nhật ứng viên thành công',
@@ -301,12 +349,20 @@ class CandidateController extends Controller
             })
             ->first();
         $hasAccess = $candidate->users->contains('id', $user->id);
+        $candidate->permission_update = true; // Mặc định cho update thông tin
         // Ẩn - Hiện: Thông tin nếu không phải người tạo, hoặc chưa được admin phân quyền
         if ($candidate->created_by !== $user->id && !$hasAccess) {
             $candidate->email = $this->maskEmail($candidate->email);
             $candidate->phone = $this->maskPhone($candidate->phone);
             $candidate->cv_no_contact = '';
             $candidate->cv_with_contact = '';
+            $candidate->cv_no_contact_en = '';
+            $candidate->cv_with_contact_en = '';
+            $candidate->cv_no_contact_cn = '';
+            $candidate->cv_with_contact_cn = '';
+            $candidate->cv_no_contact_kr = '';
+            $candidate->cv_with_contact_kr = '';
+            $candidate->permission_update = false; // Không cho update thông tin
         }
 
         if (empty($candidate)) {
@@ -357,47 +413,58 @@ class CandidateController extends Controller
 
     public function checkExists(Request $request)
     {
-        // Validate dữ liệu đầu vào
+        $candidate_id = (int)$request->candidate_id;
         $result = [
             'phone' => ['message' => '', 'status' => false],
             'email' => ['message' => '', 'status' => false],
         ];
-
+        $rules = [
+            'phone' => ['nullable', 'regex:/^0[0-9]{9}$/'],
+            'email' => ['nullable', 'email'],
+        ];
+        $messages = [
+            'phone.regex' => 'Số điện thoại phải là dạng số và gồm 10 ký tự',
+            'email.email' => '(Email không đúng định dạng)',
+        ];
+        if (empty($candidate_id)) {
+            $rules['phone'][] = Rule::unique('candidates', 'phone');
+            $rules['email'][] = Rule::unique('candidates', 'email');
+            $messages['phone.unique'] = 'Số điện thoại đã tồn tại';
+            $messages['email.unique'] = 'Email đã tồn tại';
+        }
         try {
-            $validated = $request->validate([
-                'phone' => ['nullable', 'regex:/^0[0-9]{9}$/'], // Ví dụ 10 số
-                'email' => ['nullable', 'email']
-            ], [
-                'phone.regex' => 'Số điện thoại phải là dạng số và gồm 10 ký tự',
-                'email.email' => 'Email không đúng định dạng',
-            ]);
+            $validated = $request->validate($rules, $messages);
         } catch (ValidationException $e) {
-            $errors = $e->errors(); // Trả về mảng: ['phone' => [...], 'email' => [...]]
-    
+            $errors = $e->errors();
             if (isset($errors['phone'])) {
                 $result['phone']['status'] = true;
-                $result['phone']['message'] = '('.$errors['phone'][0].')'; // lấy message đầu tiên
+                $result['phone']['message'] = '('.$errors['phone'][0].')';
             }
             if (isset($errors['email'])) {
                 $result['email']['status'] = true;
                 $result['email']['message'] = '('.$errors['email'][0].')';
             }
-    
-            return response()->json($result); // status code 422: Unprocessable Entity
+            return response()->json($result);
         }
-
+        // Validate xong, tiếp tục kiểm tra tồn tại nếu có candidate_id
         if (!empty($validated['phone'])) {
-            $exists = Candidate::where('phone', $validated['phone'])->exists();
+            $query = Candidate::where('phone', $validated['phone']);
+            if ($candidate_id) {
+                $query->where('id', '<>', $candidate_id);
+            }
+            $exists = $query->exists();
             $result['phone']['status'] = $exists;
             $result['phone']['message'] = $exists ? '(Số điện thoại đã tồn tại)' : '';
         }
-
         if (!empty($validated['email'])) {
-            $exists = Candidate::where('email', $validated['email'])->exists();
+            $query = Candidate::where('email', $validated['email']);
+            if ($candidate_id) {
+                $query->where('id', '<>', $candidate_id);
+            }
+            $exists = $query->exists();
             $result['email']['status'] = $exists;
             $result['email']['message'] = $exists ? '(Email đã tồn tại)' : '';
         }
-
         return response()->json($result);
     }
 
