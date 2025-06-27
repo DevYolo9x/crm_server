@@ -11,7 +11,9 @@ class CandidateResource extends JsonResource
         return [
             'id' => $this->id,
             'code' => $this->code,
-            'full_name' => $this->full_name,
+            'full_name' => [
+                'vi' => $this->full_name
+            ],
             'phone' => $this->phone,
             'email' => $this->email,
             'industry' => $this->industry ? $this->industry->title : '',
@@ -41,12 +43,6 @@ class CandidateResource extends JsonResource
             'permission_update' => $this->permission_update,
             'cv_no_contact' => $this->cv_no_contact ? asset($this->cv_no_contact) : null,
             'cv_with_contact' => $this->cv_with_contact ? asset($this->cv_with_contact) : null,
-            'cv_no_contact_en' => $this->cv_no_contact_en ? asset($this->cv_no_contact_en) : null,
-            'cv_with_contact_en' => $this->cv_with_contact_en ? asset($this->cv_with_contact_en) : null,
-            'cv_no_contact_cn' => $this->cv_no_contact_cn ? asset($this->cv_no_contact_cn) : null,
-            'cv_with_contact_cn' => $this->cv_with_contact_cn ? asset($this->cv_with_contact_cn) : null,
-            'cv_no_contact_kr' => $this->cv_no_contact_kr ? asset($this->cv_no_contact_kr) : null,
-            'cv_with_contact_kr' => $this->cv_with_contact_kr ? asset($this->cv_with_contact_kr) : null,
             'expiry_date' => date('Y-m-d H:i:s', strtotime($this->expiry_date)),
             'created_at' => date('Y-m-d H:i:s', strtotime($this->created_at)),
             'updated_at' => date('Y-m-d H:i:s', strtotime($this->updated_at)),

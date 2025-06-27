@@ -40,6 +40,7 @@ Route::group(['middleware' => ['auth:api']], function () {
     Route::group(['prefix' => 'config'], function () {
         Route::controller(ConfigurationController::class)->group(function () {
             Route::get('/cities', 'cities');
+            Route::get('/languages', 'getLanguages');
             Route::get('/configurations/candidate', 'candidate');
             Route::get('/configurations', 'index')->middleware('can:configurations_edit');
             Route::post('/configurations', 'update')->middleware('can:configurations_edit');

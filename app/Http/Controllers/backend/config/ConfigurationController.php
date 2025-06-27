@@ -42,6 +42,17 @@ class ConfigurationController extends Controller
         ]);
     }
 
+    public function getLanguages()
+    {
+        $data = collect(config('languages'))->map(function ($name, $code) {
+            return [
+                'code' => $code,
+                'name' => $name,
+            ];
+        })->values();
+        return response()->json($data);
+    }
+
     public function index()
     {
         $configs = Configuration::all();

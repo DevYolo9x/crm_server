@@ -7,8 +7,10 @@ use App\Http\Resources\backend\industry\IndustryCollection;
 use App\Http\Resources\backend\industry\IndustryResource;
 use App\Models\Industry;
 use App\Traits\LogsActivity;
+use App\Models\IndustryTranslation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class IndustryController extends Controller
 {
@@ -34,14 +36,30 @@ class IndustryController extends Controller
 
     public function store(Request $request)
     {
+        $titles = $request->title;
         $data = $request->validate([
-            'title' => 'required|unique:industries|string|max:255',
+            'title' => ['required', 'array'],
+            'title.vi' => ['required', 'string', Rule::unique('industries', 'title->vi')],
         ], [
-            'title.required' => 'Tiêu đề là trường bắt buộc.',
-            'title.unique' => 'Tiêu đề đã tồn tại.',
+            'title.vi.required' => 'Tiêu đề là bắt buộc.',
+            'title.vi.unique' => 'Tiêu đề đã tồn tại.',
         ]);
-        $data['created_by'] = Auth::user()->id;
-        $industry = Industry::create($data);
+        $industry = Industry::create([
+            'title' => $titles['vi'],
+            'created_by' => Auth::user()->id,
+        ]);
+        // Thêm phần dịch
+        unset($titles['vi']);
+        if( isset($titles) && is_array($titles) && count($titles) ) {
+            foreach( $titles as $key => $title ){
+                IndustryTranslation::create([
+                    'alanguage' => $key,
+                    'title' => $title,
+                    'industry_id' => $industry->id,
+                ]);
+            }
+        }
+
         $this->logActivity('create', Industry::class, $industry);
         return response()->json([
             'message' => 'Thêm mới nhóm ngành nghề thành công',
@@ -52,12 +70,21 @@ class IndustryController extends Controller
     public function update(Request $request, $id)
     {
         $industry = Industry::findOrFail($id);
+        // $data = $request->validate([
+        //     'title' => 'required|string|max:255|unique:industries,title,' . $industry->id,
+        // ], [
+        //     'title.required' => 'Tiêu đề là trường bắt buộc.',
+        //     'title.unique' => 'Tiêu đề đã tồn tại.',
+        // ]);
+
         $data = $request->validate([
-            'title' => 'required|string|max:255|unique:industries,title,' . $industry->id,
+            'title' => ['required', 'array'],
+            'title.vi' => ['required', 'string', 'unique:industries,title,'. $industry->id],
         ], [
-            'title.required' => 'Tiêu đề là trường bắt buộc.',
-            'title.unique' => 'Tiêu đề đã tồn tại.',
+            'title.vi.required' => 'Tiêu đề là bắt buộc.',
+            'title.vi.unique' => 'Tiêu đề đã tồn tại.',
         ]);
+
         $industry->update($data);
         $this->logActivity('update', Industry::class, $industry);
         return response()->json([
