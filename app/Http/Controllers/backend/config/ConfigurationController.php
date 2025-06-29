@@ -29,13 +29,34 @@ class ConfigurationController extends Controller
         if ($configs) {
             foreach ($configs as $config) {
                 if ($config->key == 'candidate.education') {
-                    $educations = !empty($config->value) ? array_map(fn($value, $index) => ['id' => trim($value), 'name' => trim($value)], explode("\n", trim($config->value)), array_keys(explode("\n", trim($config->value)))) : [];
+                    $vi = $en = $kr = [];
+                    foreach (preg_split('/\r\n|\r|\n/', $config->value) as $line) {
+                        [$v, $e, $k] = array_map('trim', explode(' - ', $line));
+                        $vi[] = $v;
+                        $en[] = $e;
+                        $kr[] = $k;
+                    }
+                    $vi = array_map(fn($item) => ['id' => $item, 'name' => $item], $vi);
+                    $en = array_map(fn($item) => ['id' => $item, 'name' => $item], $en);
+                    $kr = array_map(fn($item) => ['id' => $item, 'name' => $item], $kr);
+                    $educations = compact('vi', 'en', 'kr');
+                    //$educations = !empty($config->value) ? array_map(fn($value, $index) => ['id' => trim($value), 'name' => trim($value)], explode("\n", trim($config->value)), array_keys(explode("\n", trim($config->value)))) : [];
                 } else if ($config->key == 'candidate.language') {
-                    $languages = !empty($config->value) ? array_map(fn($value, $index) => ['id' => trim($value), 'name' => trim($value)], explode("\n", trim($config->value)), array_keys(explode("\n", trim($config->value)))) : [];
+                    $vi = $en = $kr = [];
+                    foreach (preg_split('/\r\n|\r|\n/', $config->value) as $line) {
+                        [$v, $e, $k] = array_map('trim', explode(' - ', $line));
+                        $vi[] = $v;
+                        $en[] = $e;
+                        $kr[] = $k;
+                    }
+                    $vi = array_map(fn($item) => ['id' => $item, 'name' => $item], $vi);
+                    $en = array_map(fn($item) => ['id' => $item, 'name' => $item], $en);
+                    $kr = array_map(fn($item) => ['id' => $item, 'name' => $item], $kr);
+                    $languages = compact('vi', 'en', 'kr');
+                    //$languages = !empty($config->value) ? array_map(fn($value, $index) => ['id' => trim($value), 'name' => trim($value)], explode("\n", trim($config->value)), array_keys(explode("\n", trim($config->value)))) : [];
                 }
             }
         }
-
         return response()->json([
             'educations' => $educations,
             'languages' => $languages

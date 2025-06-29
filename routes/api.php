@@ -73,6 +73,7 @@ Route::group(['middleware' => ['auth:api']], function () {
     Route::get('customer-group-lists', [CustomerGroupController::class, 'lists']);
     Route::get('customer-lists', [CustomerController::class, 'lists']);
     Route::get('industries-lists', [IndustryController::class, 'lists']);
+    Route::get('industries-lists-lang', [IndustryController::class, 'listsLang']);
 
     Route::prefix('customer-groups')->group(function () {
         Route::get('/', [CustomerGroupController::class, 'index'])->middleware('can:customer_groups_index');
