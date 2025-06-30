@@ -38,7 +38,7 @@ class UpdateCandidateRequest extends FormRequest
 
     public function rules(): array
     {
-        $candidateId = $this->route('candidate'); // hoặc $this->id nếu id là input
+        $candidateId = $this->id; // hoặc $this->id nếu id là input
 
         $rules = [
             'phone' => [
@@ -50,8 +50,7 @@ class UpdateCandidateRequest extends FormRequest
                 Rule::unique('candidates', 'email')->ignore($candidateId),
             ],
             'current_location' => ['required'],
-            'desired_location' => ['required', 'array', 'min:1'],
-            'desired_location.*' => ['integer', 'exists:locations,id'],
+            'desired_location' => ['required', 'array'],
             'language_other' => ['nullable', 'string', 'max:255'],
             'file_cv.vi.cv_no_contact.file' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
             'file_cv.vi.cv_with_contact.file' => 'nullable|file|mimes:pdf,doc,docx|max:10240',

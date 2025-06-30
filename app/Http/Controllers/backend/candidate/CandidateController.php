@@ -409,7 +409,7 @@ class CandidateController extends Controller
         //     'file_cv.vi.cv_no_contact.file.max' => 'Dung lượng File CV không có thông tin liên hệ không quá 10MB. ',
         //     'file_cv.vi.cv_with_contact.file.max' => 'Dung lượng File CV không có thông tin liên hệ không quá 10MB. ',
         // ];
-        $data = $request->validate($rules, $messages);
+        //$data = $request->validate($rules, $messages);
 
         if ($request->hasFile('file_cv.vi.cv_no_contact.file')) {
             $data['file_cv.vi.cv_no_contact.file'] = $this->uploadFile($request->file('file_cv.vi.cv_no_contact.file'));
@@ -432,13 +432,13 @@ class CandidateController extends Controller
         
         //
         $candidate->update($_update);
-        // $candidate->desiredLocations()->delete();
-        // $desired_location = $request->desired_location;
-        // if( isset($desired_location) && is_array($desired_location) && count($desired_location) ){
-        //     foreach ($desired_location as $location) {
-        //         $candidate->desiredLocations()->create(['location_id' => $location]);
-        //     }
-        // }
+        $candidate->desiredLocations()->delete();
+        $desired_location = $request->desired_location;
+        if( isset($desired_location) && is_array($desired_location) && count($desired_location) ){
+            foreach ($desired_location as $location) {
+                $candidate->desiredLocations()->create(['location_id' => $location]);
+            }
+        }
 
         // Tạo danh sách nhóm ngành nghề
         $industryIds = array_column($request->industry_id['vi'], 'id');
