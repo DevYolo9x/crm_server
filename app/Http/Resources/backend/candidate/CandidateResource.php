@@ -8,66 +8,6 @@ class CandidateResource extends JsonResource
 {
     public function toArray($request)
     {
-        // return [
-        //     'id' => $this->id,
-        //     'code' => $this->code,
-        //     'full_name' => [
-        //         'vi' => $this->full_name
-        //     ],
-        //     'phone' => $this->phone,
-        //     'email' => $this->email,
-        //     'industry' => $this->industry ? $this->industry->title : '',
-        //     'createBy' => $this->createBy ? $this->createBy->name : '',
-        //     'education' => [
-        //         'vi' => [
-        //             'id' => $this->education,
-        //             'name' => $this->education
-        //         ]
-        //     ],
-        //     'language' => [
-        //         'vi' => [
-        //             'id' => $this->language,
-        //             'name' => $this->language
-        //         ]
-        //     ],
-        //     'language_other' => $this->language_other,
-        //     'current_location' => $this->current_location,
-        //     'desired_locations' => $this->desiredLocations->map(function ($location) {
-        //         return [
-        //             'location_id' => $location->location_id,
-        //         ];
-        //     }),
-        //     'users' => $this->users->map(function ($user) {
-        //         return [
-        //             'id' => $user->id,
-        //             'name' => $user->code . ' - ' . $user->name
-        //         ];
-        //     }),
-        //     'industry_id' => $this->formatIndustriesByLocale(),
-        //     'experience_summary' => [
-        //         'vi' => $this->experience_summary
-        //     ],
-        //     'permission_update' => $this->permission_update,
-        //     'file_cv' => [
-        //         'vi' => [
-        //             'cv_no_contact' => [
-        //                 'url' => $this->cv_no_contact ? asset($this->cv_no_contact) : null,
-        //                 'file' => new \stdClass()
-        //             ],
-        //             'cv_with_contact' => [
-        //                 'url' => $this->cv_with_contact ? asset($this->cv_with_contact) : null,
-        //                 'file' => new \stdClass()
-        //             ]
-                    
-        //         ]
-        //     ],
-        //     'cv_no_contact' => $this->cv_no_contact ? asset($this->cv_no_contact) : null,
-        //     'cv_with_contact' => $this->cv_with_contact ? asset($this->cv_with_contact) : null,
-        //     'expiry_date' => date('Y-m-d H:i:s', strtotime($this->expiry_date)),
-        //     'created_at' => date('Y-m-d H:i:s', strtotime($this->created_at)),
-        //     'updated_at' => date('Y-m-d H:i:s', strtotime($this->updated_at)),
-        // ];
-
         return [
             'id' => $this->id,
             'code' => $this->code,
@@ -79,7 +19,7 @@ class CandidateResource extends JsonResource
             'education' => $this->getTranslatedFieldAsObject('education'),
             'language' => $this->getTranslatedFieldAsObject('language'),
             'language_other' => $this->language_other,
-            'current_location' => $this->current_location,
+            'current_location' => (int)$this->current_location,
             'desired_locations' => $this->desiredLocations->map(function ($location) {
                 return ['location_id' => $location->location_id];
             }),
@@ -101,12 +41,13 @@ class CandidateResource extends JsonResource
         ];
     }
 
-    protected function getTranslatedField(string $field): array
+    protected function getTranslatedField(string $field): object
     {
-        return $this->translations
-            ->pluck($field, 'alanguage')
-            ->filter() // loại bỏ null
-            ->toArray();
+        $data = $this->translations
+        ->pluck($field, 'alanguage')
+        ->filter()
+        ->toArray();
+        return (object) $data;
     }
 
     protected function getTranslatedFieldAsObject(string $field): array
@@ -149,10 +90,6 @@ class CandidateResource extends JsonResource
     {
         $result = [];
         foreach ($this->industries as $industry) {
-            $result['vi'][] = [
-                'id' => $industry->id,
-                'title' => $industry->title,
-            ];
             foreach ($industry->industry_translations as $translation) {
                 $result[$translation->alanguage][] = [
                     'id' => $industry->id,

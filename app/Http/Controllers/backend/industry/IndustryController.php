@@ -66,19 +66,22 @@ class IndustryController extends Controller
     public function store(Request $request)
     {
         $titles = $request->title;
-        $data = $request->validate([
-            'title' => ['required', 'array'],
-            'title.vi' => ['required', 'string', Rule::unique('industries', 'title->vi')],
-        ], [
-            'title.vi.required' => 'Tiêu đề là bắt buộc.',
+        $languages = array_keys(config('languages'));
+        foreach ($languages as $lang) {
+            $rules["title.$lang"] = 'required|string';
+            $rules["title.vi"] = 'unique:industries,title';
+        }
+        $messages = [
+            'title.*.required' => 'Tiêu đề là bắt buộc.',
             'title.vi.unique' => 'Tiêu đề đã tồn tại.',
-        ]);
+        ];
+
+        $data = $request->validate($rules, $messages);
         $industry = Industry::create([
             'title' => $titles['vi'],
             'created_by' => Auth::user()->id,
         ]);
         // Thêm phần dịch
-        unset($titles['vi']);
         if( isset($titles) && is_array($titles) && count($titles) ) {
             foreach( $titles as $key => $title ){
                 IndustryTranslation::create([
@@ -100,27 +103,33 @@ class IndustryController extends Controller
     {
         $titles = $request->title;
         $industry = Industry::findOrFail($id);
-        // $data = $request->validate([
-        //     'title' => 'required|string|max:255|unique:industries,title,' . $industry->id,
-        // ], [
-        //     'title.required' => 'Tiêu đề là trường bắt buộc.',
-        //     'title.unique' => 'Tiêu đề đã tồn tại.',
-        // ]);
-
-        $data = $request->validate([
-            'title' => ['required', 'array'],
-            'title.vi' => ['required', 'string', 'unique:industries,title,'. $industry->id],
-        ], [
-            'title.vi.required' => 'Tiêu đề là bắt buộc.',
+        $languages = array_keys(config('languages'));
+        $rules = [];
+        foreach ($languages as $lang) {
+            $rules["title.$lang"] = 'required|string';
+            $rules["title.vi"] = 'unique:industries,title,'.$industry->id;
+        }
+        $messages = [
+            'title.*.required' => 'Tiêu đề là bắt buộc.',
             'title.vi.unique' => 'Tiêu đề đã tồn tại.',
-        ]);
+        ];
+
+        $data = $request->validate($rules, $messages);
+
+        // $data = $request->validate([
+        //     'title' => ['required', 'array'],
+        //     'title.vi' => ['required', 'string', 'unique:industries,title,'. $industry->id],
+        // ], [
+        //     'title.vi.required' => 'Tiêu đề là bắt buộc.',
+        //     'title.vi.unique' => 'Tiêu đề đã tồn tại.',
+        // ]);
 
         $industry->update([
             'title' => $titles['vi'],
         ]);
         // Thêm phần dịch
-        unset($titles['vi']);
-        IndustryTranslation::where('industry_id', $industry->id)->delete();
+        $industry->industry_translations->delete();
+        //IndustryTranslation::where('industry_id', $industry->id)->delete();
         if( isset($titles) && is_array($titles) && count($titles) ) {
             foreach( $titles as $key => $title ){
                 IndustryTranslation::create([

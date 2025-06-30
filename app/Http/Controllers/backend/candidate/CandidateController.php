@@ -3,21 +3,23 @@
 namespace App\Http\Controllers\backend\candidate;
 
 use \Log;
+use \Validator;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateCandidateRequest;
 use App\Http\Resources\backend\candidate\CandidateCollection;
 use App\Http\Resources\backend\candidate\CandidateResource;
 use App\Models\Candidate;
 use App\Models\CandidateIndustry;
-use App\Models\Configuration;
 use App\Models\CandidateTranslation;
-use App\Traits\LogsActivity;
 use App\Models\CandidateUser;
+use App\Models\Configuration;
+use App\Traits\LogsActivity;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 
 class CandidateController extends Controller
@@ -152,126 +154,10 @@ class CandidateController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'full_name' => 'required|string|max:255',
-            'phone' => 'required|unique:candidates',
-            'email' => 'required|email|max:255|unique:candidates',
-            //'industry_id' => 'required|exists:industries,id|gt:0',
-            'current_location' => 'required',
-            'desired_location' => 'required',
-            'cv_no_contact' => 'nullable|file|mimes:pdf|max:10240',
-            'cv_with_contact' => 'nullable|file|mimes:pdf|max:10240',
-            'education' => 'nullable',
-            'language' => 'nullable',
-            'language_other' => 'nullable',
-            'experience_summary' => 'nullable',
-        ], [
-            'full_name.required' => 'Họ và tên là trường bắt buộc. ',
-            'phone.required' => 'Số điện thoại là trường bắt buộc. ',
-            'phone.unique' => 'Số điện thoại đã tồn tại. ',
-            'email.required' => 'Email là trường bắt buộc. ',
-            'email.email' => 'Email không đúng định dạng. ',
-            'email.unique' => 'Email đã tồn tại. ',
-            //'industry_id.required' => 'Nhóm ngành nghề là trường bắt buộc. ',
-            //'industry_id.gt' => 'Nhóm ngành nghề là trường bắt buộc. ',
-            //'industry_id.exists' => 'Nhóm ngành nghề không tồn tại. ',
-            'current_location.required' => 'Chỗ ở hiện tại là trường bắt buộc. ',
-            'desired_location.required' => 'Khu vực mong muốn làm việc là trường bắt buộc. ',
-            'cv_no_contact.mimes' => 'File CV không có thông tin liên hệ không đúng định dạng. ',
-            'cv_with_contact.mimes' => 'File CV có thông tin liên hệ không đúng định dạng. ',
-            'cv_no_contact.max' => 'Dung lượng File CV không có thông tin liên hệ không quá 10MB. ',
-            'cv_with_contact.max' => 'Dung lượng File CV không có thông tin liên hệ không quá 10MB. ',
-        ]);
-        $industryIds = $request->industry_id;
-        $lastCustomer = Candidate::orderBy('id', 'desc')->first();
-        if ($lastCustomer) {
-            $lastCode = (int) filter_var($lastCustomer->code, FILTER_SANITIZE_NUMBER_INT); // Lấy số từ mã KHxxx
-            $newCode = 'UV' . str_pad($lastCode + 1, 3, '0', STR_PAD_LEFT); // Tăng lên 1 và định dạng 3 chữ số
-        } else {
-            $newCode = 'UV001'; // Nếu chưa có khách hàng nào, bắt đầu từ KH001
-        }
-        $data['code'] = $newCode;
-        $data['created_by'] = Auth::user()->id;
-        $expiration_date = Configuration::where('key', 'candidate.expiration_date')->value('value');
-        $data['expiry_date'] = Carbon::now()->addDays($expiration_date ? (int) $expiration_date : 90);
-        // Xử lý upload file vào thư mục public/uploads/cv
-        if ($request->hasFile('cv_no_contact')) {
-            $data['cv_no_contact'] = $this->uploadFile($request->file('cv_no_contact'));
-        }
-        if ($request->hasFile('cv_with_contact')) {
-            $data['cv_with_contact'] = $this->uploadFile($request->file('cv_with_contact'));
-        }
-        $candidate = Candidate::create($data);
-        $desired_location = json_decode($request->input('desired_location'));
-        foreach ($desired_location as $location) {
-            $candidate->desiredLocations()->create(['location_id' => $location]);
-        }
-
-        // Tạo danh sách nhóm ngành nghề
-        if( isset($industryIds) && is_array($industryIds) && count($industryIds) ){
-            foreach( $industryIds as $industryId ) {
-                CandidateIndustry::create(['candidate_id' => $candidate->id, 'industry_id' => $industryId]);
-            }
-        }
-
-        // Cập nhật lại phân quyển button update
-        $user = Auth::user();
-        $candidate->permission_update = true;
-        $canViewAll = $user->can('candidates_all');
-        $isAdmin = $user->can('candidates_administrator');
-        $isCreator = $candidate->created_by === $user->id;
-        if ($canViewAll && !$isAdmin && !$isCreator) {
-            $candidate->permission_update = false;
-        }
-
-        $this->logActivity('create', Candidate::class, $candidate);
-        return response()->json([
-            'message' => 'Thêm mới ứng viên thành công',
-            'candidate' => new CandidateResource($candidate->load('desiredLocations'))
-        ]);
-    }
-    private function uploadFile($file)
-    {
-        $folderPath = 'uploads/cv/' . now()->format('Y/m/d');
-        $destinationPath = public_path($folderPath);
-
-        // Tạo thư mục nếu chưa tồn tại
-        if (!file_exists($destinationPath)) {
-            mkdir($destinationPath, 0755, true);
-        }
-        // Đặt tên file ngẫu nhiên tránh trùng lặp
-        $fileName = Str::random(10) . '.' . $file->getClientOriginalExtension();
-        // Di chuyển file vào thư mục public
-        $file->move($destinationPath, $fileName);
-
-        return "$folderPath/$fileName"; // Lưu đường dẫn file để lưu vào database
-    }
-    public function update(Request $request, $id)
-    {
-        // $arrDelete = CandidateIndustry::where('candidate_id', $id)->pluck('id')->toArray();
-        // CandidateIndustry::whereIn('id', $arrDelete)->forceDelete();
-        $user = auth()->user();
-        $candidate = Candidate::where(['id' => $id])
-            ->when(( $user->can('candidates_all') && !$user->can('candidates_administrator') ), function ($query) use ($user) {
-                return $query->where('created_by', $user->id);
-            })
-            ->first();
-        if (empty($candidate)) {
-            return response()->json(['message' => 'Ứng viên không tồn tại'], 404);
-        }
-
-        $hasAccess = $candidate->users->contains('id', $user->id);
-        $canViewAll = $user->can('candidates_all');
-        $isAdmin = $user->can('candidates_administrator');
-        $isCreator = $candidate->created_by === $user->id;
-        if ($canViewAll && !$isAdmin && !$isCreator && !$hasAccess) {
-            return response()->json(['message' => 'Bạn không có quyền truy cập'], 404);
-        }
-
         // $data = $request->validate([
         //     'full_name' => 'required|string|max:255',
-        //     'phone' => 'required|string|max:20|unique:candidates,phone,' . $candidate->id,
-        //     'email' => 'required|email|max:255|unique:candidates,email,' . $candidate->id,
+        //     'phone' => 'required|unique:candidates',
+        //     'email' => 'required|email|max:255|unique:candidates',
         //     //'industry_id' => 'required|exists:industries,id|gt:0',
         //     'current_location' => 'required',
         //     'desired_location' => 'required',
@@ -299,11 +185,12 @@ class CandidateController extends Controller
         //     'cv_with_contact.max' => 'Dung lượng File CV không có thông tin liên hệ không quá 10MB. ',
         // ]);
 
+
         $languages = array_keys(config('languages'));
 
         $rules = [
-            'phone' => 'required|string|max:20|unique:candidates,phone,' . $candidate->id,
-            'email' => 'required|email|max:255|unique:candidates,email,' . $candidate->id,
+            'phone' => 'required|string|max:20|unique:candidates,phone',
+            'email' => 'required|email|max:255|unique:candidates,email',
             'current_location' => 'required',
             'desired_location' => 'required|array',
             'cv_no_contact' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
@@ -350,52 +237,44 @@ class CandidateController extends Controller
         
         $data = $request->validate($rules, $messages);
 
+        $lastCustomer = Candidate::orderBy('id', 'desc')->first();
+        if ($lastCustomer) {
+            $lastCode = (int) filter_var($lastCustomer->code, FILTER_SANITIZE_NUMBER_INT); // Lấy số từ mã KHxxx
+            $newCode = 'UV' . str_pad($lastCode + 1, 3, '0', STR_PAD_LEFT); // Tăng lên 1 và định dạng 3 chữ số
+        } else {
+            $newCode = 'UV001'; // Nếu chưa có khách hàng nào, bắt đầu từ KH001
+        }
+        $data['code'] = $newCode;
+        $data['created_by'] = Auth::user()->id;
+        $expiration_date = Configuration::where('key', 'candidate.expiration_date')->value('value');
+        $data['expiry_date'] = Carbon::now()->addDays($expiration_date ? (int) $expiration_date : 90);
+        // Xử lý upload file vào thư mục public/uploads/cv
         if ($request->hasFile('cv_no_contact')) {
             $data['cv_no_contact'] = $this->uploadFile($request->file('cv_no_contact'));
-        } else {
-            $data['cv_no_contact'] = $candidate->cv_no_contact;
         }
         if ($request->hasFile('cv_with_contact')) {
             $data['cv_with_contact'] = $this->uploadFile($request->file('cv_with_contact'));
-        } else {
-            $data['cv_with_contact'] = $candidate->cv_with_contact;
         }
-
-        $industryIds = array_column($request->industry_id['vi'], 'id');
-        //array_column($industry_vi, 'id');
-        // $localizedData = [];
-        // $languages = array_keys($request->full_name ?? []);
-        // foreach ($languages as $lang) {
-        //     $localizedData[$lang] = [
-        //         'full_name' => $request->full_name[$lang] ?? null,
-        //         'education' => $request->education[$lang]['id'] ?? null,
-        //         'language' => $request->language[$lang]['id'] ?? null,
-        //         'experience_summary' => $request->experience_summary[$lang] ?? null,
-        //     ];
-        // }
-        // dd($localizedData);
-
-
-
-
-        $_update = [
+        $_create = [
+            'code' => $newCode,
+            'created_by' => Auth::user()->id,
+            'expiry_date' => Carbon::now()->addDays($expiration_date ? (int) $expiration_date : 90),
             'full_name' => $request->full_name['vi'],
             'phone' => $request->phone,
             'email' => $request->email,
-            'current_location' => $request->current_location,
+            'current_location' => ' 1',
+            'cv_no_contact' => ' 1',
+            'cv_with_contact' => ' 1',
+            'language_other' => ' 1',
         ];
-        
-
-        $candidate->update($_update);
-        $candidate->desiredLocations()->delete();
+        $candidate = Candidate::create($_create);
         $desired_location = $request->desired_location;
-        if( isset($desired_location) && is_array($desired_location) && count($desired_location) ){
-            foreach ($desired_location as $location) {
-                $candidate->desiredLocations()->create(['location_id' => $location]);
-            }
+        foreach ($desired_location as $location) {
+            $candidate->desiredLocations()->create(['location_id' => $location]);
         }
 
         // Tạo danh sách nhóm ngành nghề
+        $industryIds = array_column($request->industry_id['vi'], 'id');
         $candidate->industries()->detach();
         if( isset($industryIds) && is_array($industryIds) && count($industryIds) ){
             foreach( $industryIds as $industryId ) {
@@ -415,6 +294,186 @@ class CandidateController extends Controller
                 'experience_summary' => $request->experience_summary[$lang] ?? null,
                 'cv_no_contact' => '',
                 'cv_with_contact' => '',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+        CandidateTranslation::insert($localizedData);
+
+        // Cập nhật lại phân quyển button update
+        $user = Auth::user();
+        $candidate->permission_update = true;
+        $canViewAll = $user->can('candidates_all');
+        $isAdmin = $user->can('candidates_administrator');
+        $isCreator = $candidate->created_by === $user->id;
+        if ($canViewAll && !$isAdmin && !$isCreator) {
+            $candidate->permission_update = false;
+        }
+
+        $this->logActivity('create', Candidate::class, $candidate);
+        return response()->json([
+            'message' => 'Thêm mới ứng viên thành công',
+            'candidate' => new CandidateResource($candidate->load('desiredLocations'))
+        ]);
+    }
+    private function uploadFile($file)
+    {
+        $folderPath = 'uploads/cv/' . now()->format('Y/m/d');
+        $destinationPath = public_path($folderPath);
+
+        // Tạo thư mục nếu chưa tồn tại
+        if (!file_exists($destinationPath)) {
+            mkdir($destinationPath, 0755, true);
+        }
+        // Đặt tên file ngẫu nhiên tránh trùng lặp
+        $fileName = Str::random(10) . '.' . $file->getClientOriginalExtension();
+        // Di chuyển file vào thư mục public
+        $file->move($destinationPath, $fileName);
+
+        return "$folderPath/$fileName"; // Lưu đường dẫn file để lưu vào database
+    }
+    public function update(UpdateCandidateRequest $request, $id)
+    {
+        //return response()->json($request->file('file_cv.vi.cv_no_contact'));
+        // $arrDelete = CandidateIndustry::where('candidate_id', $id)->pluck('id')->toArray();
+        // CandidateIndustry::whereIn('id', $arrDelete)->forceDelete();
+        $user = auth()->user();
+        $candidate = Candidate::where(['id' => $id])
+            ->when(( $user->can('candidates_all') && !$user->can('candidates_administrator') ), function ($query) use ($user) {
+                return $query->where('created_by', $user->id);
+            })
+            ->first();
+        if (empty($candidate)) {
+            return response()->json(['message' => 'Ứng viên không tồn tại'], 404);
+        }
+        $hasAccess = $candidate->users->contains('id', $user->id);
+        $canViewAll = $user->can('candidates_all');
+        $isAdmin = $user->can('candidates_administrator');
+        $isCreator = $candidate->created_by === $user->id;
+        if ($canViewAll && !$isAdmin && !$isCreator && !$hasAccess) {
+            return response()->json(['message' => 'Bạn không có quyền truy cập'], 404);
+        }
+
+
+        $data = $request->all();
+        $languages = array_keys(config('languages'));
+
+        $validated = $request->validated();
+
+
+        // $rules = [
+        //     'phone' => 'required|string|max:20|unique:candidates,phone,' . $candidate->id,
+        //     'email' => 'required|email|max:255|unique:candidates,email,' . $candidate->id,
+        //     'current_location' => 'required',
+        //     'desired_location' => 'required|array',
+        //     'language_other' => 'nullable|string|max:255',
+        //     'file_cv.vi.cv_no_contact.file' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
+        //     'file_cv.vi.cv_with_contact.file' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
+        // ];
+        // foreach ($languages as $lang) {
+        //     // full_name.vi, full_name.en, full_name.kr: bắt buộc
+        //     $rules["full_name.$lang"] = 'required|string|max:255';
+        //     // industry_id.[lang]: bắt buộc là mảng có ít nhất 1 phần tử
+        //     $rules["industry_id.$lang"] = 'required|array|min:1';
+        //     $rules["industry_id.$lang.*.id"] = 'required|integer|exists:industries,id';
+        //     $rules["industry_id.$lang.*.title"] = 'required|string|max:255';
+        //     // education.[lang]: bắt buộc là mảng với id và name
+        //     $rules["education.$lang"] = 'required|array';
+        //     $rules["education.$lang.id"] = 'required|string|max:255';
+        //     $rules["education.$lang.name"] = 'required|string|max:255';
+        //     // language.[lang]: bắt buộc là mảng với id và name
+        //     $rules["language.$lang"] = 'required|array';
+        //     $rules["language.$lang.id"] = 'required|string|max:255';
+        //     $rules["language.$lang.name"] = 'required|string|max:255';
+        //     // experience_summary.[lang]: không bắt buộc, nhưng là chuỗi
+        //     $rules["experience_summary.$lang"] = 'nullable|string';
+        //     // file cv
+        //     $rules["file_cv.$lang.cv_no_contact.file"] = 'nullable|file|mimes:pdf,doc,docx|max:10240';
+        //     $rules["file_cv.$lang.cv_with_contact.file"] = 'nullable|file|mimes:pdf,doc,docx|max:10240';
+        // }
+        // $messages = [
+        //     'full_name.*.required' => 'Tên đầy đủ [:attribute] là bắt buộc.',
+        //     'industry_id.*.required' => 'Ngành nghề [:attribute] là bắt buộc.',
+        //     'industry_id.*.min' => 'Phải chọn ít nhất 1 ngành nghề [:attribute].',
+        //     'industry_id.*.*.id.required' => 'ID ngành nghề [:attribute] là bắt buộc.',
+        //     'industry_id.*.*.id.exists' => 'ID ngành nghề [:attribute] không hợp lệ.',
+        //     'education.*.required' => 'Trình độ học vấn [:attribute] là bắt buộc.',
+        //     'education.*.id.required' => 'ID học vấn [:attribute] là bắt buộc.',
+        //     'education.*.name.required' => 'Tên học vấn [:attribute] là bắt buộc.',
+        //     'language.*.required' => 'Ngôn ngữ [:attribute] là bắt buộc.',
+        //     'language.*.id.required' => 'ID ngôn ngữ [:attribute] là bắt buộc.',
+        //     'language.*.name.required' => 'Tên ngôn ngữ [:attribute] là bắt buộc.',
+
+        //     'file_cv.vi.cv_no_contact.file.mimes' => 'File CV không có thông tin liên hệ không đúng định dạng. ',
+        //     'file_cv.vi.cv_with_contact.file.mimes' => 'File CV có thông tin liên hệ không đúng định dạng. ',
+        //     'file_cv.vi.cv_no_contact.file.max' => 'Dung lượng File CV không có thông tin liên hệ không quá 10MB. ',
+        //     'file_cv.vi.cv_with_contact.file.max' => 'Dung lượng File CV không có thông tin liên hệ không quá 10MB. ',
+        // ];
+        $data = $request->validate($rules, $messages);
+
+        if ($request->hasFile('file_cv.vi.cv_no_contact.file')) {
+            $data['file_cv.vi.cv_no_contact.file'] = $this->uploadFile($request->file('file_cv.vi.cv_no_contact.file'));
+        } else {
+            $data['file_cv.vi.cv_no_contact.file'] = $candidate->cv_no_contact;
+        }
+        if ($request->hasFile('file_cv.vi.cv_with_contact.file')) {
+            $data['file_cv.vi.cv_with_contact.file'] = $this->uploadFile($request->file('file_cv.vi.cv_with_contact.file'));
+        } else {
+            $data['file_cv.vi.cv_with_contact.file'] = $candidate->cv_with_contact;
+        }
+
+        
+        $_update = [
+            'full_name' => $request->full_name['vi'],
+            'phone' => $request->phone,
+            'email' => $request->email,
+            'current_location' => $request->current_location,
+        ];
+        
+        //
+        $candidate->update($_update);
+        // $candidate->desiredLocations()->delete();
+        // $desired_location = $request->desired_location;
+        // if( isset($desired_location) && is_array($desired_location) && count($desired_location) ){
+        //     foreach ($desired_location as $location) {
+        //         $candidate->desiredLocations()->create(['location_id' => $location]);
+        //     }
+        // }
+
+        // Tạo danh sách nhóm ngành nghề
+        $industryIds = array_column($request->industry_id['vi'], 'id');
+        $candidate->industries()->detach();
+        if( isset($industryIds) && is_array($industryIds) && count($industryIds) ){
+            foreach( $industryIds as $industryId ) {
+                CandidateIndustry::create(['candidate_id' => $candidate->id, 'industry_id' => $industryId]);
+            }
+        }
+
+        // Tạo Candidate Dịch
+        $localizedData = [];
+        foreach ($languages as $lang) {
+
+            // Mặc định là null hoặc giữ nguyên chuỗi rỗng nếu không có file
+            $cvNoContact = '';
+            $cvWithContact = '';
+
+            if ($request->hasFile("file_cv.$lang.cv_no_contact")) {
+                $cvNoContact = $this->uploadFile($request->file("file_cv.$lang.cv_no_contact"));
+            }
+        
+            if ($request->hasFile("file_cv.$lang.cv_with_contact")) {
+                $cvWithContact = $this->uploadFile($request->file("file_cv.$lang.cv_with_contact"));
+            }
+
+            $localizedData[] = [
+                'candidate_id' => $candidate->id,
+                'alanguage' => $lang,
+                'full_name' => $request->full_name[$lang] ?? null,
+                'education' => $request->education[$lang]['id'] ?? null,
+                'language' => $request->language[$lang]['id'] ?? null,
+                'experience_summary' => $request->experience_summary[$lang] ?? null,
+                'cv_no_contact' => $cvNoContact,
+                'cv_with_contact' => $cvWithContact,
                 'created_at' => now(),
                 'updated_at' => now(),
             ];

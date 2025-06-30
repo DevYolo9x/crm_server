@@ -14,10 +14,18 @@ class IndustryResource extends JsonResource
         }
         return [
             'id' => $this->id,
-            'title' => $titles,
+            'title' => $this->getTranslatedField('title'),
             'createBy' => $this->createBy ? $this->createBy->name : '',
             'created_at' => date('Y-m-d H:i:s', strtotime($this->created_at)),
             'updated_at' => date('Y-m-d H:i:s', strtotime($this->updated_at)),
         ];
+    }
+
+    protected function getTranslatedField(string $field): array
+    {  
+        return $data = $this->industry_translations
+        ->pluck($field, 'alanguage')
+        ->filter()
+        ->toArray();
     }
 }
