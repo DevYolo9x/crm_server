@@ -38,7 +38,7 @@ class UpdateCandidateRequest extends FormRequest
 
     public function rules(): array
     {
-        $candidateId = $this->id; // hoặc $this->id nếu id là input
+        $candidateId = $this->route('candidate')?->id ?? $this->input('id');
 
         $rules = [
             'phone' => [
@@ -52,8 +52,6 @@ class UpdateCandidateRequest extends FormRequest
             'current_location' => ['required'],
             'desired_location' => ['required', 'array'],
             'language_other' => ['nullable', 'string', 'max:255'],
-            'file_cv.vi.cv_no_contact.file' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
-            'file_cv.vi.cv_with_contact.file' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
         ];
 
         $languages = array_keys(config('languages'));
@@ -77,7 +75,6 @@ class UpdateCandidateRequest extends FormRequest
             $rules["file_cv.$lang.cv_no_contact.file"] = 'nullable|file|mimes:pdf,doc,docx|max:10240';
             $rules["file_cv.$lang.cv_with_contact.file"] = 'nullable|file|mimes:pdf,doc,docx|max:10240';
         }
-
         return $rules;
     }
 

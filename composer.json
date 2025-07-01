@@ -13,6 +13,7 @@
         "laravel/sanctum": "^3.3",
         "laravel/tinker": "^2.8",
         "nesbot/carbon": "*",
+        "phpoffice/phpword": "^1.4",
         "tymon/jwt-auth": "^2.2"
     },
     "require-dev": {
