@@ -114,6 +114,7 @@ Route::group(['middleware' => ['auth:api']], function () {
         Route::post('/', [CandidateController::class, 'store'])->middleware('can:candidates_create');
         Route::post('/add-user', [CandidateController::class, 'addUserForCandidate']);
         Route::get('/check-exists', [CandidateController::class, 'checkExists']);
+        Route::get('/export-cv', [CandidateController::class, 'exportTemplateCV'])->middleware('can:candidates_index');
         Route::post('/{id}', [CandidateController::class, 'update'])->middleware('can:candidates_edit'); // POST để hỗ trợ file upload
         Route::delete('/{id}', [CandidateController::class, 'destroy'])->middleware('can:candidates_destroy');
         Route::get('/{id}/show', [CandidateController::class, 'show']);

@@ -20,8 +20,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+
+// Export word
+use PhpOffice\PhpWord\TemplateProcessor;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use PhpOffice\PhpWord\PhpWord;
-use PhpOffice\PhpWord\IOFactory;
+use PhpOffice\PhpWord\Shared\Html;
 
 class CandidateController extends Controller
 {
@@ -239,6 +244,7 @@ class CandidateController extends Controller
             'candidate' => new CandidateResource($candidate->load('desiredLocations'))
         ]);
     }
+
     private function uploadFile($file)
     {
         $folderPath = 'uploads/cv/' . now()->format('Y/m/d');
@@ -255,6 +261,7 @@ class CandidateController extends Controller
 
         return "$folderPath/$fileName"; // Lưu đường dẫn file để lưu vào database
     }
+
     public function update(UpdateCandidateRequest $request, $id)
     {
         $user = auth()->user();
@@ -365,6 +372,96 @@ class CandidateController extends Controller
             'candidate' => new CandidateResource($candidate)
         ]);
     }
+
+    public function exportTemplateCV(Request $request)
+    {
+        $template = new TemplateProcessor(storage_path('app/templates/template.docx'));
+
+        // Thông tin cá nhân
+        $strengthsHtml = <<<HTML
+        <ul>
+            <li style="margin-bottom: 5px"><strong>Trình độ học vấn:</strong> Tốt nghiệp chuyên ngành Ngôn ngữ Nhật tại Trường Đại học Phương Đông.</li>
+            <li style="margin-bottom: 5px"><strong>Kinh nghiệm chuyên môn:</strong>
+                <ul>
+                    <li>Có 3 năm kinh nghiệm trong lĩnh vực xuất khẩu tại công ty Hàn Quốc.</li>
+                    <li>Am hiểu khai báo hải quan, C/O Form E, VK, VJ, B, EUR1.</li>
+                    <li>Thành thạo theo dõi tiến độ, xử lý phát sinh và thanh toán quốc tế.</li>
+                </ul>
+            </li>
+            <li style="margin-bottom: 5px"><strong>Mức lương mong muốn:</strong> 13.500.000 VND Gross (có thể thương lượng)</li>
+            <li style="margin-bottom: 5px"><strong>Thời gian bắt đầu đi làm:</strong> Sau 1 tuần từ khi nhận được thông báo</li>
+        </ul>
+        HTML;
+
+        $template->setValue('full_name', 'Trần Xuân Bình');
+        $template->setValue('birthday', '07/11/1998');
+        $template->setValue('gender', 'Nam');
+        $template->setValue('address', 'Hà Nam - Bình Lục');
+        $template->setValue('strengths', '===HTML_BLOCK_STRENGTHS===');
+
+        // Học tập
+        $educations = array(
+            array('education_title' => '9/2017 - 10/2021', 'education_description' => 'Trường Đại học Phương Đông Ngôn ngữ Nhật'),
+            array('education_title' => '30/2022 - 30/2025', 'education_description' => 'Trường Đại học Phương Tây Ngôn ngữ Nhật'),
+        );
+        $template->cloneBlock('block_educations', 0, true, false, $educations);
+
+        // Kỹ năng
+        $skills = [
+            ['skill_title' => 'Tin học', 'skill_description' => 'Am hiểu và sử dụng thành thạo các chức năng nâng cao như định dạng văn bản, tạo bảng biểu, hàm Excel, lọc và phân tích dữ liệu'],
+            ['skill_title' => 'Photoshop / Canva', 'skill_description' => 'Thiết kế cơ bản phục vụ truyền thông, thuyết trình, Thành thạo Google Docs, Sheets, Slides.'],
+        ];
+        $template->cloneBlock('block_skills', 0, true, false, $skills);
+
+        // Kinh nghiệm làm việc
+        $experiences = [
+            [
+                'experience_title' => '06/2021 - Hiện tại',
+                'experience_description' => 'Công ty TNHH Global Sourcenet Thiết Kế Thời Trang Và Nội Thất Khu Vực Long Biên Hà Nội',
+                'experience_tasks' => "● Nhận thông tin và book các lô hàng xuất.<w:br/>● Chuẩn bị hồ sơ chứng từ.<w:br/>● Khai hải quan, làm C/O form E, VK, VJ, B, EUR1...<w:br/>● Làm việc với Forwarder, theo dõi tiến độ và xử lý phát sinh.",
+            ],
+            [
+                'experience_title' => '06/2025',
+                'experience_description' => 'Công ty TNHH Global Sourcenet',
+                'experience_tasks' => "● Nhận thông tin và book các lô hàng xuất.<w:br/>● Chuẩn bị hồ sơ chứng từ.<w:br/>● Khai hải quan, làm C/O form E, VK, VJ, B, EUR1...<w:br/>● Làm việc với Forwarder, theo dõi tiến độ và xử lý phát sinh.",
+            ]
+        ];
+        $template->cloneBlock('block_experiences', 0, true, false, $experiences);
+
+        $fileName = 'cv_loan.docx';
+        $filePath = storage_path("app/exports/$fileName");
+        $template->saveAs($filePath);
+
+        // Thêm đoạn mã html thô vào trong word
+        // Tạo file Word chứa HTML để lấy WordML
+        $htmlWord = new PhpWord();
+        $section = $htmlWord->addSection();
+        Html::addHtml($section, $strengthsHtml, false, false);
+        $htmlDocxPath = storage_path('app/exports/html_temp.docx');
+        $htmlWord->save($htmlDocxPath, 'Word2007');
+
+        // Trích XML từ html_temp.docx
+        $zipHtml = new \ZipArchive();
+        $zipHtml->open($htmlDocxPath);
+        $htmlXml = $zipHtml->getFromName('word/document.xml');
+        $zipHtml->close();
+
+        // Lấy phần giữa <w:body>...</w:body>
+        preg_match('/<w:body>(.*?)<\/w:body>/s', $htmlXml, $matches);
+        $htmlWordML = $matches[1] ?? '';
+
+        // Mở file chính và thay thế
+        $zipMain = new \ZipArchive();
+        $zipMain->open($filePath);
+        $mainXml = $zipMain->getFromName('word/document.xml');
+        $mainXml = str_replace('===HTML_BLOCK_STRENGTHS===', $htmlWordML, $mainXml);
+        $zipMain->addFromString('word/document.xml', $mainXml);
+        $zipMain->close();
+
+        return response()->download($filePath)->deleteFileAfterSend(true);
+    }
+
+
     public function show($id)
     {
         $user = auth()->user();
@@ -373,23 +470,6 @@ class CandidateController extends Controller
                 return $query->where('created_by', $user->id);
             })
             ->first();
-        $hasAccess = $candidate->users->contains('id', $user->id);
-        // $candidate->permission_update = true; // Mặc định cho update thông tin
-        // // Ẩn - Hiện: Thông tin nếu không phải người tạo, hoặc chưa được admin phân quyền
-        // if ($candidate->created_by !== $user->id && !$hasAccess) {
-        //     $candidate->email = $this->maskEmail($candidate->email);
-        //     $candidate->phone = $this->maskPhone($candidate->phone);
-        //     $candidate->cv_no_contact = '';
-        //     $candidate->cv_with_contact = '';
-        //     $candidate->cv_no_contact_en = '';
-        //     $candidate->cv_with_contact_en = '';
-        //     $candidate->cv_no_contact_cn = '';
-        //     $candidate->cv_with_contact_cn = '';
-        //     $candidate->cv_no_contact_kr = '';
-        //     $candidate->cv_with_contact_kr = '';
-        //     $candidate->permission_update = false; // Không cho update thông tin
-        // }
-
         if (empty($candidate)) {
             return response()->json(['message' => 'Ứng viên không tồn tại'], 404);
         }
