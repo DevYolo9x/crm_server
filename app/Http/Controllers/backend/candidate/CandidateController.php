@@ -27,6 +27,11 @@ use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\Shared\Html;
+use App\Helpers\HtmlToText;
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\File;
+use PhpOffice\PhpWord\IOFactory;
+use PhpOffice\PhpWord\SimpleType\Jc;
 
 class CandidateController extends Controller
 {
@@ -393,6 +398,8 @@ class CandidateController extends Controller
         </ul>
         HTML;
 
+        $convertedStrength = HtmlToText::convert($strengthsHtml);
+
         $template->setValue('full_name', 'Trần Xuân Bình');
         $template->setValue('birthday', '07/11/1998');
         $template->setValue('gender', 'Nam');
@@ -436,7 +443,7 @@ class CandidateController extends Controller
         // Tạo file Word chứa HTML để lấy WordML
         $htmlWord = new PhpWord();
         $section = $htmlWord->addSection();
-        Html::addHtml($section, $strengthsHtml, false, false);
+        Html::addHtml($section, $convertedStrength, false, false);
         $htmlDocxPath = storage_path('app/exports/html_temp.docx');
         $htmlWord->save($htmlDocxPath, 'Word2007');
 
@@ -461,6 +468,102 @@ class CandidateController extends Controller
         return response()->download($filePath)->deleteFileAfterSend(true);
     }
 
+
+    public function exportTemplateCV1(Request $request)
+    {
+        $template = new TemplateProcessor(storage_path('app/templates/template.docx'));
+
+        // HTML input
+        $html = <<<HTML
+        <ul>
+            <li><strong>Trình độ học vấn:</strong> Tốt nghiệp chuyên ngành Ngôn ngữ Nhật tại Trường Đại học Phương Đông.</li>
+            <li><strong>Kinh nghiệm chuyên môn:</strong>
+                <ul>
+                    <li>Có 3 năm kinh nghiệm trong lĩnh vực xuất khẩu tại công ty Hàn Quốc.</li>
+                    <li>Am hiểu khai báo hải quan, C/O Form E, VK, VJ, B, EUR1.</li>
+                    <li>Thành thạo theo dõi tiến độ, xử lý phát sinh và thanh toán quốc tế.</li>
+                </ul>
+            </li>
+            <li><strong>Mức lương mong muốn:</strong> 13.500.000 VND Gross (có thể thương lượng)</li>
+            <li><strong>Thời gian bắt đầu đi làm:</strong> Sau 1 tuần từ khi nhận được thông báo</li>
+        </ul>
+        HTML;
+
+        // Convert HTML to formatted text
+        $convertedText = HtmlToText::convert($html);
+        $convertedText = str_replace("\n", '</w:t><w:br/><w:t>', $convertedText);
+
+        // Gán vào placeholder ${strengths}
+        $template->setValue('strengths', ($convertedText));
+        
+
+        // Xuất file
+        $filename = 'cv_output.docx';
+        $template->saveAs(storage_path("app/public/$filename"));
+
+        return response()->download(storage_path("app/public/$filename"));
+    }
+
+    public function exportTemplateBlade()
+    {
+        // HTML danh sách strengths
+        $strengthsHtml = '<ul style="font-weight: bold;line-height: 1.6;">
+            <li>Tốt nghiệp chuyên ngành Ngôn ngữ Nhật tại Đại học Phương Đông Đông</li>
+            <li>Có tổng 3 năm kinh nghiệm làm chuyên sâu về Xuất khẩu cho công ty chuyên gia công sản xuất quần áo thời trang nữ xuất khẩu trang thị trường EU,Mỹ, Nhật Bản… của Hàn Quốc, về phần Nhập khẩu có hiểu biết và làm phần thanh toán. Có kinh nghiệm trực tiếp khai báo hải quan, khai báo C/O form E, VK, VJ, B, EUR1 và theo dõi tiến độ hàng hóa và giải quyết những vấn đề phát sinh trong quá trình vận chuyển</li>
+            <li>Mức lương mong muốn: VND 13.500.000 Gross (có thể thương lượng thêm)</li>
+            <li>Thời gian bắt đầu đi làm: 1 tuần khi nhận được thông báo</li>
+        </ul>';
+
+        $strengthsHtml = HtmlToText::convertListToBulletParagraphs($strengthsHtml);
+
+        $html = View::make('cv.cv_template', [
+            'name' => 'Nguyễn Văn A',
+            'position' => 'Lập trình viên',
+            'strengths' => $strengthsHtml,
+        ])->render();
+
+        $html = mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8');
+
+        $phpWord = new PhpWord();
+        $phpWord->setDefaultFontName('Times New Roman');
+        $phpWord->setDefaultFontSize(12);
+
+        $section = $phpWord->addSection([
+            'marginTop'    => 1944,
+            'marginLeft'   => 720,
+            'marginRight'  => 720,
+            'marginBottom' => 706,
+        ]);
+
+        $header = $section->addHeader();
+        $header->addImage(storage_path('app/templates/logo.png'), ['width' => 80, 'alignment' => 'left']);
+
+        $footer = $section->addFooter();
+        $footer->addPreserveText('Trang {PAGE} / {NUMPAGES}', [
+            'size' => 10,
+            'name' => 'Arial',
+        ], ['alignment' => Jc::CENTER]);
+
+        // Tách theo <!-- pagebreak -->
+        $parts = explode('<!-- pagebreak -->', $html);
+
+        foreach ($parts as $index => $partHtml) {
+            if ($index > 0) {
+                $section->addPageBreak();
+            }
+
+            // Các block
+            $this->processInsertPlaceholders($section, $partHtml);
+        }
+
+        $fileName = 'cv_' . time() . '.docx';
+        $filePath = storage_path("app/public/$fileName");
+
+        $writer = IOFactory::createWriter($phpWord, 'Word2007');
+        $writer->save($filePath);
+
+        return response()->download($filePath)->deleteFileAfterSend(true);
+    }
 
     public function show($id)
     {
@@ -489,6 +592,8 @@ class CandidateController extends Controller
         }
         $this->logActivity('delete', Candidate::class, $candidate);
         $candidate->delete();
+        $candidate->industries->delete();
+        $candidate->translations->delete();
         return response()->json(['message' => 'Xóa ứng viên thành công']);
     }
 
@@ -515,9 +620,6 @@ class CandidateController extends Controller
             return response()->json(['message' => 'Thông tin không chính xác!']);
         }
     }
-
-
-    
 
     public function checkExists(Request $request)
     {
@@ -593,5 +695,81 @@ class CandidateController extends Controller
         $visible = max(1, floor(strlen($name) / 3));
         return substr($name, 0, $visible) . str_repeat('*', strlen($name) - $visible) . '@' . $domain;
     }
+
+    private function processInsertPlaceholders($section, $html, $data = [])
+    {
+        $placeholders = [
+            'insert_information_here' => fn() => HtmlToText::insertInformationBlock($section, $data),
+            'insert_education_here'   => fn() => HtmlToText::insertEducationBlock($section),
+            'insert_skills_here'      => fn() => HtmlToText::insertSkillsTable($section),
+            'insert_experience_here'  => fn() => HtmlToText::insertExperienceBlock($section, $data),
+            'insert_strengths_here'   => fn() => HtmlToText::insertStrengthsBlock($section),
+        ];
+
+        foreach ($placeholders as $marker => $callback) {
+            $fullMarker = "<!-- {$marker} -->";
+
+            if (str_contains($html, $fullMarker)) {
+                [$before, $after] = explode($fullMarker, $html, 2);
+                Html::addHtml($section, $before, false, false);
+                $callback();
+                $html = $after;
+            }
+        }
+
+        // Render phần còn lại nếu có
+        if (trim($html)) {
+            Html::addHtml($section, $html, false, false);
+        }
+    }
+
+    // private function processInsertPlaceholders($section, $html)
+    // {
+    //     // Chèn information nếu có
+    //     if (str_contains($html, '<!-- insert_information_here -->')) {
+    //         [$before, $after] = explode('<!-- insert_information_here -->', $html);
+    //         Html::addHtml($section, $before, false, false);
+    //         HtmlToText::insertInformationBlock($section, $data = []); // truyền đúng $data
+    //         $html = $after;
+    //     }
+
+    //     // Chèn education nếu có
+    //     if (str_contains($html, '<!-- insert_education_here -->')) {
+    //         [$before, $after] = explode('<!-- insert_education_here -->', $html);
+    //         Html::addHtml($section, $before, false, false);
+    //         HtmlToText::insertEducationBlock($section);
+    //         $html = $after;
+    //     }
+
+    //     // Chèn skills nếu có
+    //     if (str_contains($html, '<!-- insert_skills_here -->')) {
+    //         [$before, $after] = explode('<!-- insert_skills_here -->', $html);
+    //         Html::addHtml($section, $before, false, false);
+    //         HtmlToText::insertSkillsTable($section);
+    //         $html = $after;
+    //     }
+        
+    //     // Chèn experience nếu có
+    //     if (str_contains($html, '<!-- insert_experience_here -->')) {
+    //         [$before, $after] = explode('<!-- insert_experience_here -->', $html);
+    //         Html::addHtml($section, $before, false, false);
+    //         HtmlToText::insertExperienceBlock($section, $data = []);
+    //         $html = $after;
+    //     }
+
+    //     // Chèn strengths nếu có
+    //     if (str_contains($html, '<!-- insert_strengths_here -->')) {
+    //         [$before, $after] = explode('<!-- insert_strengths_here -->', $html);
+    //         Html::addHtml($section, $before, false, false);
+    //         HtmlToText::insertStrengthsBlock($section);
+    //         $html = $after;
+    //     }
+
+    //     // Cuối cùng render phần còn lại nếu có
+    //     if (trim($html)) {
+    //         Html::addHtml($section, $html, false, false);
+    //     }
+    // }
+
     
 }
