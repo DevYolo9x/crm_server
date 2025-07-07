@@ -62,8 +62,8 @@ class HtmlToText
 
         $rows = [
             ['time' => '9/2017 - 10/2021', 'school' => 'Trường Trung Học Phương Đông Ngôn ngữ Nhật'],
-            ['time' => '30/2021 - 30/2023', 'school' => 'Trường Trung Học Phổ Thông Phương Tây Ngôn ngữ Nhật'],
-            ['time' => '30/2021 - 30/2023', 'school' => 'Trường Đại Học Quốc Gia Hà Nội'],
+            ['time' => '30/2023 - 30/2024', 'school' => 'Trường Trung Học Phổ Thông Phương Tây Ngôn ngữ Nhật'],
+            ['time' => '30/2024 - Nay', 'school' => 'Trường Đại Học Quốc Gia Hà Nội'],
         ];
 
         foreach ($rows as $row) {
@@ -132,7 +132,7 @@ class HtmlToText
 
         $experiences = [
             [
-                'time' => '06/2022 - Hiện tại',
+                'time' => '06/2020 - 09/2023',
                 'company' => 'CÔNG TY TNHH GLOBAL SOURCENET',
                 'position' => 'Nhân viên xuất nhập khẩu (Mạnh về xuất khẩu)',
                 'duties' => [
@@ -147,7 +147,7 @@ class HtmlToText
                 ]
             ],
             [
-                'time' => '06/2022 - Hiện tại',
+                'time' => '09/2023 - Hiện tại',
                 'company' => 'CÔNG TY TNHH GLOBAL SOURCENET',
                 'position' => 'Nhân viên xuất nhập khẩu (Mạnh về xuất khẩu)',
                 'duties' => [

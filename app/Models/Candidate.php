@@ -12,6 +12,7 @@ class Candidate extends Model
         'code',
         'full_name',
         'phone',
+        'avatar',
         'email',
         'industry_id',
         'education',
@@ -52,4 +53,15 @@ class Candidate extends Model
     {
         return $this->hasMany(CandidateTranslation::class);
     }
+    public function translationByLang($lang = null)
+    {
+        $lang = $lang ?? app()->getLocale();
+
+        return $this->hasOne(CandidateTranslation::class)->where('alanguage', $lang);
+    }
+    public function translation()
+    {
+        return $this->hasOne(CandidateTranslation::class);
+    }
+    
 }

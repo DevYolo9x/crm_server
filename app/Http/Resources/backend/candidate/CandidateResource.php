@@ -11,6 +11,8 @@ class CandidateResource extends JsonResource
         return [
             'id' => $this->id,
             'code' => $this->code,
+            'avatar' => new \stdClass(),
+            'avatar_url' => !empty($this->avatar) ? asset($this->avatar) : storage_path('app/templates/img-default.jpg'),
             'full_name' => $this->getTranslatedField('full_name'),
             'phone' => $this->checkPermission() ? $this->maskPhone($this->phone) : $this->phone,
             'email' => $this->checkPermission() ? $this->maskPhone($this->email) : $this->email,
@@ -31,8 +33,12 @@ class CandidateResource extends JsonResource
             }),
             'industry_id' => $this->formatIndustriesByLocale(),
             'experience_summary' => $this->getTranslatedField('experience_summary'),
+            'skills' => $this->getDecodedFieldJson('skills') != null ? $this->getDecodedFieldJson('skills') : new \stdClass(),
+            'work_experience' => ($this->getDecodedFieldJson('work_experience') != null) ? $this->getDecodedFieldJson('work_experience') : new \stdClass(),
+            'time_education' => $this->getDecodedFieldJson('time_education') != null ? $this->getDecodedFieldJson('time_education') : new \stdClass(),
             'permission_update' => $this->checkPermission() ? false : true,
             'file_cv' => $this->getTranslatedFileCV(),
+            'strength' => $this->getTranslatedField('strength'),
             'cv_no_contact' => $this->cv_no_contact ? asset($this->cv_no_contact) : null,
             'cv_with_contact' => $this->cv_with_contact ? asset($this->cv_with_contact) : null,
             'expiry_date' => $this->formatDate($this->expiry_date),
@@ -61,6 +67,20 @@ class CandidateResource extends JsonResource
         ->filter()
         ->toArray();
         return (object) $data;
+    }
+
+    protected function getDecodedFieldJson(string $field, string $languageKey = 'alanguage')
+    {
+        return $this->translations
+            ->filter(function ($item) use ($field) {
+                return !empty($item->{$field});
+            })
+            ->mapWithKeys(function ($item) use ($field, $languageKey) {
+                return [
+                    $item->{$languageKey} => json_decode($item->{$field}, true),
+                ];
+            })
+            ->toArray();
     }
 
     protected function getTranslatedFieldAsObject(string $field): array

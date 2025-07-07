@@ -165,6 +165,11 @@ class CandidateController extends Controller
 
     public function store(UpdateCandidateRequest $request)
     {
+        $timeEducation = json_decode($request->time_education, true);
+        $skills = json_decode($request->skills, true);
+        $workExperience = json_decode($request->work_experience, true);
+        $strength = json_decode($request->currentStrength, true);
+
         $languages = array_keys(config('languages'));
         $validated = $request->validated(); // Validate dữ liệu
         $lastCustomer = Candidate::orderBy('id', 'desc')->first();
@@ -225,6 +230,10 @@ class CandidateController extends Controller
                 'education' => $request->education[$lang]['id'] ?? null,
                 'language' => $request->language[$lang]['id'] ?? null,
                 'experience_summary' => $request->experience_summary[$lang] ?? null,
+                'time_education' => isset($timeEducation[$lang]) ? json_encode($timeEducation[$lang]) : '',
+                'skills' => isset($skills[$lang]) ? json_encode($skills[$lang]) : '',
+                'work_experience' => isset($workExperience[$lang]) ? json_encode($workExperience[$lang]) : '',
+                'strength' => $strength[$lang] ?? '',
                 'cv_no_contact' => '',
                 'cv_with_contact' => '',
                 'created_at' => now(),
@@ -269,12 +278,12 @@ class CandidateController extends Controller
 
     public function update(UpdateCandidateRequest $request, $id)
     {
+        //return response()->json($request);
         $timeEducation = json_decode($request->time_education, true);
         $skills = json_decode($request->skills, true);
         $workExperience = json_decode($request->work_experience, true);
+        $strength = json_decode($request->currentStrength, true);
 
-        return response()->json($request);
-        return response()->json($timeEducation);
         $user = auth()->user();
         $candidate = Candidate::where(['id' => $id])
             ->when(( $user->can('candidates_all') && !$user->can('candidates_administrator') ), function ($query) use ($user) {
@@ -312,11 +321,18 @@ class CandidateController extends Controller
             }
         }
 
+        // Upload Avarta
+        $avatar = $candidate->avatar;
+        if ($request->hasFile("avatar")) {
+            $avatar = $this->uploadFile($request->file("avatar"));
+        }
+
         // Cập nhật ứng viên
         $_update = [
             'full_name' => $request->full_name['vi'],
             'phone' => $request->phone,
             'email' => $request->email,
+            'avatar' => $avatar,
             'current_location' => $request->current_location,
         ];
         $candidate->update($_update);
@@ -358,7 +374,10 @@ class CandidateController extends Controller
                 'education' => $request->education[$lang]['id'] ?? null,
                 'language' => $request->language[$lang]['id'] ?? null,
                 'experience_summary' => $request->experience_summary[$lang] ?? null,
-                //'time_education' => $request->experience_summary[$lang] ?? null,
+                'time_education' => isset($timeEducation[$lang]) ? json_encode($timeEducation[$lang]) : '',
+                'skills' => isset($skills[$lang]) ? json_encode($skills[$lang]) : '',
+                'work_experience' => isset($workExperience[$lang]) ? json_encode($workExperience[$lang]) : '',
+                'strength' => $strength[$lang] ?? '',
                 'cv_no_contact' => $cvNoContact ?: $detailLang->cv_no_contact,
                 'cv_with_contact' => $cvWithContact ?: $detailLang->cv_with_contact,
                 'created_at' => now(),
@@ -511,8 +530,18 @@ class CandidateController extends Controller
         return response()->download(storage_path("app/public/$filename"));
     }
 
-    public function exportTemplateBlade()
+    public function exportTemplateBlade(Request $request)
     {
+        $id = (int)$request->id;
+        $lang = $request->lang;
+
+        $candidate = Candidate::with([
+            'translation' => function ($query) use ($lang, $id) {
+                $query->where(['candidate_id' => $id,'alanguage' => $lang]);
+            }
+        ])->findOrFail($id);
+
+        //return response()->json($candidate->translation);
         // HTML danh sách strengths
         $strengthsHtml = '<ul style="font-weight: bold;line-height: 1.6;">
             <li>Tốt nghiệp chuyên ngành Ngôn ngữ Nhật tại Đại học Phương Đông Đông</li>
@@ -560,7 +589,7 @@ class CandidateController extends Controller
             }
 
             // Các block
-            $this->processInsertPlaceholders($section, $partHtml);
+            $this->processInsertPlaceholders($section, $partHtml, $candidate->translation);
         }
 
         $fileName = 'cv_' . time() . '.docx';
@@ -705,12 +734,13 @@ class CandidateController extends Controller
 
     private function processInsertPlaceholders($section, $html, $data = [])
     {
+        return response()->json($data);
         $placeholders = [
             'insert_information_here' => fn() => HtmlToText::insertInformationBlock($section, $data),
-            'insert_education_here'   => fn() => HtmlToText::insertEducationBlock($section),
-            'insert_skills_here'      => fn() => HtmlToText::insertSkillsTable($section),
+            'insert_education_here'   => fn() => HtmlToText::insertEducationBlock($section, $data),
+            'insert_skills_here'      => fn() => HtmlToText::insertSkillsTable($section, $data),
             'insert_experience_here'  => fn() => HtmlToText::insertExperienceBlock($section, $data),
-            'insert_strengths_here'   => fn() => HtmlToText::insertStrengthsBlock($section),
+            'insert_strengths_here'   => fn() => HtmlToText::insertStrengthsBlock($section, $data),
         ];
 
         foreach ($placeholders as $marker => $callback) {
