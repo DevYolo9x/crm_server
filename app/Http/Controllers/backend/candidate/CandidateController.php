@@ -269,6 +269,12 @@ class CandidateController extends Controller
 
     public function update(UpdateCandidateRequest $request, $id)
     {
+        $timeEducation = json_decode($request->time_education, true);
+        $skills = json_decode($request->skills, true);
+        $workExperience = json_decode($request->work_experience, true);
+
+        return response()->json($request);
+        return response()->json($timeEducation);
         $user = auth()->user();
         $candidate = Candidate::where(['id' => $id])
             ->when(( $user->can('candidates_all') && !$user->can('candidates_administrator') ), function ($query) use ($user) {
@@ -352,6 +358,7 @@ class CandidateController extends Controller
                 'education' => $request->education[$lang]['id'] ?? null,
                 'language' => $request->language[$lang]['id'] ?? null,
                 'experience_summary' => $request->experience_summary[$lang] ?? null,
+                //'time_education' => $request->experience_summary[$lang] ?? null,
                 'cv_no_contact' => $cvNoContact ?: $detailLang->cv_no_contact,
                 'cv_with_contact' => $cvWithContact ?: $detailLang->cv_with_contact,
                 'created_at' => now(),
