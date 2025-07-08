@@ -15,6 +15,7 @@ class CandidateTranslation extends Model
         'alanguage',
         'full_name',
         'education',
+        'gender',
         'language',
         'experience_summary',
         'cv_no_contact',

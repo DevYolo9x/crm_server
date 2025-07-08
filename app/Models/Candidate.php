@@ -13,6 +13,7 @@ class Candidate extends Model
         'full_name',
         'phone',
         'avatar',
+        'birthday',
         'email',
         'industry_id',
         'education',
