@@ -15,8 +15,8 @@ return [
             'ja' => '申請書類',
         ],
         'infomation' => [
-            'vi' => 'PERSONAL INFORMATION',
-            'en' => 'SKILLS',
+            'vi' => 'THÔNG TIN CÁ NHÂN',
+            'en' => 'PERSONAL INFORMATION',
             'kr' => '개인 정보',
             'ja' => '個人情報',
             'sub' => [
@@ -72,7 +72,7 @@ return [
         ],
         'strength' => [
             'vi' => 'ĐIỂM MẠNH',
-            'en' => 'Strengths',
+            'en' => 'STRENGTHS',
             'kr' => '강점',
             'ja' => '強み',
         ],

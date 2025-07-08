@@ -326,7 +326,7 @@ class HtmlToText
         $fullname = $data->translation->full_name;
         $gender = $data->translation->gender;
         $birthday = date('d-m-Y', strtotime($data->birthday));
-        $avatarPath = $data['avatar_path'] ?? storage_path('app/templates/avatar.jpg');
+        $avatarPath = $data->avatar ?? asset($data->avatar);
 
         $titles = self::getSectionTitles();
         $title = $titles['infomation'][$lang] ?? 'THÔNG TIN CÁ NHÂN';
@@ -335,7 +335,7 @@ class HtmlToText
             'bold' => true,
             'underline' => 'single',
             'name' => 'Times New Roman',
-            'size' => 14,
+            'size' => 12,
         ], [
             'spaceAfter' => 200,
         ]);
