@@ -134,6 +134,7 @@ Route::group(['middleware' => ['auth:api']], function () {
         Route::get('/{id}/show', [ContractController::class, 'show']);
     });
     Route::get('jobs/{id}/show', [JobController::class, 'show']);
+    Route::get('candidate/{id}/show', [CandidateController::class, 'show']);
     Route::get('jobs/{id}/export-pdf', [JobController::class, 'exportPdf'])->name('jobs.export-pdf');
     Route::get('activity-logs', [ActivityLogController::class, 'index'])->middleware('can:activity_logs_index');
 });
