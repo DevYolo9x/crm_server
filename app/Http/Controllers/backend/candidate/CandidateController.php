@@ -541,8 +541,6 @@ class CandidateController extends Controller
         $this->logActivity('delete', Candidate::class, $candidate);
         CandidateIndustry::where(['candidate_id' => $id])->delete();
         CandidateTranslation::where(['candidate_id' => $id])->delete();
-        // $candidate->industries->delete();
-        // $candidate->translations->delete();
         $candidate->delete();
         return response()->json(['message' => 'Xóa ứng viên thành công']);
     }
