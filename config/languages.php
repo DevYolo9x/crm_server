@@ -3,5 +3,6 @@
 return [
     'vi' => 'Tiếng việt',
     'en' => 'Tiếng anh',
-    'kr' => 'Tiếng hàn',
+    //'kr' => 'Tiếng hàn',
+    'ja' => 'Tiếng Nhật',
 ];

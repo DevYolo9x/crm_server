@@ -88,6 +88,7 @@ class HtmlToText
     public static function insertEducationBlock($section, $data = [], $lang = 'vi')
     {
         $rows = json_decode($data->time_education, true);
+        if( !isset($rows) || !is_array($rows) || count($rows) == 0 ) return true;
         //$title = self::$sectionTitles['education'][$lang] ?? 'QUÁ TRÌNH HỌC TẬP';
         $titles = self::getSectionTitles();
         $title = $titles['education'][$lang] ?? 'QUÁ TRÌNH HỌC TẬP';
@@ -174,7 +175,7 @@ class HtmlToText
     public static function insertExperienceBlock($section, $data = [], $lang = 'vi')
     {
         $experiences = json_decode($data->work_experience, true);
-        //$title = self::$sectionTitles['experience'][$lang] ?? 'KINH NGHIỆM LÀM VIỆC';
+        if( !isset($experiences) || !is_array($experiences) || count($experiences) == 0 ) return true;
         $titles = self::getSectionTitles();
         $title = $titles['experience'][$lang] ?? 'KINH NGHIỆM LÀM VIỆC';
         $section->addText($title, [

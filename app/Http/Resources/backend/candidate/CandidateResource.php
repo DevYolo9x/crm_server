@@ -14,7 +14,7 @@ class CandidateResource extends JsonResource
             'avatar' => new \stdClass(),
             'birthday' => !empty($this->birthday) ? date('Y-m-d', strtotime($this->birthday)) : '',
             'gender' => $this->getTranslatedField('gender'),
-            'avatar_url' => !empty($this->avatar) ? asset($this->avatar) : storage_path('app/templates/img-default.jpg'),
+            'avatar_url' => !empty($this->avatar) ? asset($this->avatar) : asset('uploads/company/avatar-default.jpg'),
             'full_name' => $this->getTranslatedField('full_name'),
             'phone' => $this->checkPermission() ? $this->maskPhone($this->phone) : $this->phone,
             'email' => $this->checkPermission() ? $this->maskPhone($this->email) : $this->email,

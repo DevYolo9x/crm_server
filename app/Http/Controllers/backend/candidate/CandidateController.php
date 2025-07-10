@@ -133,33 +133,6 @@ class CandidateController extends Controller
             });
             $data = $data->paginate($perPage);
 
-            // Ẩn - Hiện: Thông tin nếu không phải người tạo, hoặc chưa được admin phân quyền
-            // $data = $data->through(function ($item) use ($user) {
-            //     $hasAccess = $item->users->contains('id', $user->id);
-            //     $canViewAll = $user->can('candidates_all');
-            //     $isAdmin = $user->can('candidates_administrator');
-            //     $isCreator = $item->created_by === $user->id;
-            
-            //     // Mặc định được update
-            //     $item->permission_update = true;
-            
-            //     if ($canViewAll && !$isAdmin && !$isCreator && !$hasAccess) {
-            //         // Nếu không được quyền, thì ẩn thông tin và không cho update
-            //         $item->email = $this->maskEmail($item->email);
-            //         $item->phone = $this->maskPhone($item->phone);
-            //         $item->cv_no_contact = '';
-            //         $item->cv_with_contact = '';
-            //         $item->cv_no_contact_en = '';
-            //         $item->cv_with_contact_en = '';
-            //         $item->cv_no_contact_cn = '';
-            //         $item->cv_with_contact_cn = '';
-            //         $item->cv_no_contact_kr = '';
-            //         $item->cv_with_contact_kr = '';
-            //         $item->permission_update = false;
-            //     }
-            
-            //     return $item;
-            // });
         return response()->json(new CandidateCollection($data));
     }
 
@@ -508,6 +481,63 @@ class CandidateController extends Controller
         return response()->download($filePath)->deleteFileAfterSend(true);
     }
 
+    public function checkExists(Request $request)
+    {
+        $candidate_id = (int)$request->id;
+        $result = [
+            'phone' => ['message' => '', 'status' => false],
+            'email' => ['message' => '', 'status' => false],
+        ];
+        $rules = [
+            'phone' => ['nullable', 'regex:/^0[0-9]{9}$/'],
+            'email' => ['nullable', 'email'],
+        ];
+        $messages = [
+            'phone.regex' => 'Số điện thoại phải là dạng số và gồm 10 ký tự',
+            'email.email' => '(Email không đúng định dạng)',
+        ];
+        if (empty($candidate_id)) {
+            $rules['phone'][] = Rule::unique('candidates', 'phone');
+            $rules['email'][] = Rule::unique('candidates', 'email');
+            $messages['phone.unique'] = 'Số điện thoại đã tồn tại';
+            $messages['email.unique'] = 'Email đã tồn tại';
+        }
+        try {
+            $validated = $request->validate($rules, $messages);
+        } catch (ValidationException $e) {
+            $errors = $e->errors();
+            if (isset($errors['phone'])) {
+                $result['phone']['status'] = true;
+                $result['phone']['message'] = '('.$errors['phone'][0].')';
+            }
+            if (isset($errors['email'])) {
+                $result['email']['status'] = true;
+                $result['email']['message'] = '('.$errors['email'][0].')';
+            }
+            return response()->json($result);
+        }
+        // Validate xong, tiếp tục kiểm tra tồn tại nếu có candidate_id
+        if (!empty($validated['phone'])) {
+            $query = Candidate::where('phone', $validated['phone']);
+            if ($candidate_id) {
+                $query->where('id', '<>', $candidate_id);
+            }
+            $exists = $query->exists();
+            $result['phone']['status'] = $exists;
+            $result['phone']['message'] = $exists ? '(Số điện thoại đã tồn tại)' : '';
+        }
+        if (!empty($validated['email'])) {
+            $query = Candidate::where('email', $validated['email']);
+            if ($candidate_id) {
+                $query->where('id', '<>', $candidate_id);
+            }
+            $exists = $query->exists();
+            $result['email']['status'] = $exists;
+            $result['email']['message'] = $exists ? '(Email đã tồn tại)' : '';
+        }
+        return response()->json($result);
+    }
+
 
     public function exportTemplateCV1(Request $request)
     {
@@ -556,17 +586,9 @@ class CandidateController extends Controller
             }
         ])->findOrFail($id);
 
-        //return response()->json(json_decode($candidate->translation->work_experience, true));
-        //return response()->json($candidate->translation->strength);
-
         // HTML danh sách strengths
         $strengthsHtml = $candidate->translation->strength ? $candidate->translation->strength : '';
         $strengthsHtml = HtmlToText::convertListToBulletParagraphs($strengthsHtml);
-
-        // Danh sách tiêu đề
-        $arrTitle = [
-
-        ];
 
         $html = View::make('cv.cv_template', [
             'jobTitle' => config('candidate.language')['job'][$lang],
@@ -673,81 +695,6 @@ class CandidateController extends Controller
         }
     }
 
-    public function checkExists(Request $request)
-    {
-        $candidate_id = (int)$request->candidate_id;
-        $result = [
-            'phone' => ['message' => '', 'status' => false],
-            'email' => ['message' => '', 'status' => false],
-        ];
-        $rules = [
-            'phone' => ['nullable', 'regex:/^0[0-9]{9}$/'],
-            'email' => ['nullable', 'email'],
-        ];
-        $messages = [
-            'phone.regex' => 'Số điện thoại phải là dạng số và gồm 10 ký tự',
-            'email.email' => '(Email không đúng định dạng)',
-        ];
-        if (empty($candidate_id)) {
-            $rules['phone'][] = Rule::unique('candidates', 'phone');
-            $rules['email'][] = Rule::unique('candidates', 'email');
-            $messages['phone.unique'] = 'Số điện thoại đã tồn tại';
-            $messages['email.unique'] = 'Email đã tồn tại';
-        }
-        try {
-            $validated = $request->validate($rules, $messages);
-        } catch (ValidationException $e) {
-            $errors = $e->errors();
-            if (isset($errors['phone'])) {
-                $result['phone']['status'] = true;
-                $result['phone']['message'] = '('.$errors['phone'][0].')';
-            }
-            if (isset($errors['email'])) {
-                $result['email']['status'] = true;
-                $result['email']['message'] = '('.$errors['email'][0].')';
-            }
-            return response()->json($result);
-        }
-        // Validate xong, tiếp tục kiểm tra tồn tại nếu có candidate_id
-        if (!empty($validated['phone'])) {
-            $query = Candidate::where('phone', $validated['phone']);
-            if ($candidate_id) {
-                $query->where('id', '<>', $candidate_id);
-            }
-            $exists = $query->exists();
-            $result['phone']['status'] = $exists;
-            $result['phone']['message'] = $exists ? '(Số điện thoại đã tồn tại)' : '';
-        }
-        if (!empty($validated['email'])) {
-            $query = Candidate::where('email', $validated['email']);
-            if ($candidate_id) {
-                $query->where('id', '<>', $candidate_id);
-            }
-            $exists = $query->exists();
-            $result['email']['status'] = $exists;
-            $result['email']['message'] = $exists ? '(Email đã tồn tại)' : '';
-        }
-        return response()->json($result);
-    }
-
-    public function maskPhone($phone)
-    {
-        if (strlen($phone) < 4) return str_repeat('x', strlen($phone));
-        return substr($phone, 0, 2) . str_repeat('x', strlen($phone) - 4) . substr($phone, -2);
-    }
-
-    public function maskEmail($email)
-    {
-        $parts = explode('@', $email);
-        if (count($parts) !== 2) return str_repeat('*', strlen($email));
-    
-        $name = $parts[0];
-        $domain = $parts[1];
-    
-        $visible = max(1, floor(strlen($name) / 3));
-        return substr($name, 0, $visible) . str_repeat('*', strlen($name) - $visible) . '@' . $domain;
-    }
-
     private function processInsertPlaceholders($section, $html, $data = [], $lang = 'vi')
     {
         //return response()->json($data);
@@ -760,7 +707,6 @@ class CandidateController extends Controller
             'insert_skills_here'      => fn() => HtmlToText::insertSkillsTable($section, $translation, $lang),
             'insert_experience_here'  => fn() => HtmlToText::insertExperienceBlock($section, $translation, $lang),
         ];
-
         foreach ($placeholders as $marker => $callback) {
             $fullMarker = "<!-- {$marker} -->";
 
@@ -771,60 +717,9 @@ class CandidateController extends Controller
                 $html = $after;
             }
         }
-
         // Render phần còn lại nếu có
         if (trim($html)) {
             Html::addHtml($section, $html, false, false);
         }
     }
-
-    // private function processInsertPlaceholders($section, $html)
-    // {
-    //     // Chèn information nếu có
-    //     if (str_contains($html, '<!-- insert_information_here -->')) {
-    //         [$before, $after] = explode('<!-- insert_information_here -->', $html);
-    //         Html::addHtml($section, $before, false, false);
-    //         HtmlToText::insertInformationBlock($section, $data = []); // truyền đúng $data
-    //         $html = $after;
-    //     }
-
-    //     // Chèn education nếu có
-    //     if (str_contains($html, '<!-- insert_education_here -->')) {
-    //         [$before, $after] = explode('<!-- insert_education_here -->', $html);
-    //         Html::addHtml($section, $before, false, false);
-    //         HtmlToText::insertEducationBlock($section);
-    //         $html = $after;
-    //     }
-
-    //     // Chèn skills nếu có
-    //     if (str_contains($html, '<!-- insert_skills_here -->')) {
-    //         [$before, $after] = explode('<!-- insert_skills_here -->', $html);
-    //         Html::addHtml($section, $before, false, false);
-    //         HtmlToText::insertSkillsTable($section);
-    //         $html = $after;
-    //     }
-        
-    //     // Chèn experience nếu có
-    //     if (str_contains($html, '<!-- insert_experience_here -->')) {
-    //         [$before, $after] = explode('<!-- insert_experience_here -->', $html);
-    //         Html::addHtml($section, $before, false, false);
-    //         HtmlToText::insertExperienceBlock($section, $data = []);
-    //         $html = $after;
-    //     }
-
-    //     // Chèn strengths nếu có
-    //     if (str_contains($html, '<!-- insert_strengths_here -->')) {
-    //         [$before, $after] = explode('<!-- insert_strengths_here -->', $html);
-    //         Html::addHtml($section, $before, false, false);
-    //         HtmlToText::insertStrengthsBlock($section);
-    //         $html = $after;
-    //     }
-
-    //     // Cuối cùng render phần còn lại nếu có
-    //     if (trim($html)) {
-    //         Html::addHtml($section, $html, false, false);
-    //     }
-    // }
-
-    
 }

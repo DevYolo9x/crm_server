@@ -23,43 +23,50 @@ class ConfigurationController extends Controller
     }
     public function candidate()
     {
-        $configs = Configuration::whereIn('key', ['candidate.education', 'candidate.language'])->get();
+        $configs = Configuration::whereIn('key', ['candidate.education', 'candidate.education_en', 'candidate.education_ja', 'candidate.language', 'candidate.language_en', 'candidate.language_ja'])->get();
         $educations = [];
         $languages = [];
-        if ($configs) {
-            foreach ($configs as $config) {
-                if ($config->key == 'candidate.education') {
-                    $vi = $en = $kr = [];
-                    foreach (preg_split('/\r\n|\r|\n/', $config->value) as $line) {
-                        [$v, $e, $k] = array_map('trim', explode(' - ', $line));
-                        $vi[] = $v;
-                        $en[] = $e;
-                        $kr[] = $k;
-                    }
-                    $vi = array_map(fn($item) => ['id' => $item, 'name' => $item], $vi);
-                    $en = array_map(fn($item) => ['id' => $item, 'name' => $item], $en);
-                    $kr = array_map(fn($item) => ['id' => $item, 'name' => $item], $kr);
-                    $educations = compact('vi', 'en', 'kr');
-                    //$educations = !empty($config->value) ? array_map(fn($value, $index) => ['id' => trim($value), 'name' => trim($value)], explode("\n", trim($config->value)), array_keys(explode("\n", trim($config->value)))) : [];
-                } else if ($config->key == 'candidate.language') {
-                    $vi = $en = $kr = [];
-                    foreach (preg_split('/\r\n|\r|\n/', $config->value) as $line) {
-                        [$v, $e, $k] = array_map('trim', explode(' - ', $line));
-                        $vi[] = $v;
-                        $en[] = $e;
-                        $kr[] = $k;
-                    }
-                    $vi = array_map(fn($item) => ['id' => $item, 'name' => $item], $vi);
-                    $en = array_map(fn($item) => ['id' => $item, 'name' => $item], $en);
-                    $kr = array_map(fn($item) => ['id' => $item, 'name' => $item], $kr);
-                    $languages = compact('vi', 'en', 'kr');
-                    //$languages = !empty($config->value) ? array_map(fn($value, $index) => ['id' => trim($value), 'name' => trim($value)], explode("\n", trim($config->value)), array_keys(explode("\n", trim($config->value)))) : [];
-                }
+        $result = [
+            'education' => [],
+            'language' => [],
+        ];
+        foreach ($configs as $item) {
+            // Xác định loại
+            if (str_starts_with($item->key, 'candidate.education')) {
+                $type = 'education';
+            } elseif (str_starts_with($item->key, 'candidate.language')) {
+                $type = 'language';
+            } else {
+                continue;
             }
+        
+            // Xác định ngôn ngữ
+            $lang = 'vi';
+            if (preg_match('/_(\w+)$/', $item->key, $matches)) {
+                $lang = $matches[1];
+            }
+        
+            // Tách từng dòng
+            $lines = preg_split('/\r\n|\n|\r/', $item->value);
+        
+            // Nếu là 'vi' và có cấu trúc "Đại học - English - Japanese"
+            if ($lang === 'vi') {
+                $lines = array_map(function ($line) {
+                    return explode(' - ', $line)[0];
+                }, $lines);
+            }
+        
+            // Biến thành mảng ['id' => ..., 'name' => ...]
+            $items = array_map(function ($val) {
+                return ['id' => trim($val), 'name' => trim($val)];
+            }, $lines);
+        
+            $result[$type][$lang] = $items;
         }
+        
         return response()->json([
-            'educations' => $educations,
-            'languages' => $languages
+            'educations' => $result['education'],
+            'languages' => $result['language']
         ]);
     }
 
@@ -156,8 +163,12 @@ class ConfigurationController extends Controller
                 ],
                 'candidate' => [
                     ['key' => 'expiration_date', 'label' => 'Ngày hết hạn(ngày)', 'type' => 'text'],
-                    ['key' => 'education', 'label' => 'Học vấn', 'type' => 'textarea'],
-                    ['key' => 'language', 'label' => 'Ngoại ngữ', 'type' => 'textarea'],
+                    ['key' => 'education', 'label' => 'Học vấn (VI)', 'type' => 'textarea'],
+                    ['key' => 'education_en', 'label' => 'Học vấn (EN)', 'type' => 'textarea'],
+                    ['key' => 'education_ja', 'label' => 'Học vấn (JP)', 'type' => 'textarea'],
+                    ['key' => 'language', 'label' => 'Ngoại ngữ (VI)', 'type' => 'textarea'],
+                    ['key' => 'language_en', 'label' => 'Ngoại ngữ (EN)', 'type' => 'textarea'],
+                    ['key' => 'language_ja', 'label' => 'Ngoại ngữ (JP)', 'type' => 'textarea'],
 
                 ],
             ],

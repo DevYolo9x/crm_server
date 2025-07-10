@@ -25,27 +25,15 @@ class IndustryController extends Controller
     public function listsLang()
     {
         $data = Industry::select('id', 'title')->with('industry_translations')->get();
-        $result = [
-            'vi' => [],
-            'en' => [],
-            'kr' => [],
-        ];
-        foreach ($data as $industry) {
-            // Dữ liệu tiếng Việt gốc
-            $result['vi'][] = [
-                'id' => $industry->id,
-                'title' => $industry->title,
-            ];
+        $result = [];
 
-            // Các bản dịch
+        foreach ($data as $industry) {
             foreach ($industry->industry_translations as $translation) {
                 $lang = $translation->alanguage;
-                if (in_array($lang, ['en', 'kr'])) {
-                    $result[$lang][] = [
-                        'id' => $industry->id,
-                        'title' => $translation->title,
-                    ];
-                }
+                $result[$lang][] = [
+                    'id' => $industry->id,
+                    'title' => $translation->title,
+                ];
             }
         }
         return response()->json(['industries' => $result]);
@@ -102,7 +90,7 @@ class IndustryController extends Controller
     public function update(Request $request, $id)
     {
         $titles = $request->title;
-        $industry = Industry::findOrFail($id);
+        $industry = Industry::with('industry_translations')->findOrFail($id);
         $languages = array_keys(config('languages'));
         $rules = [];
         foreach ($languages as $lang) {
@@ -115,21 +103,11 @@ class IndustryController extends Controller
         ];
 
         $data = $request->validate($rules, $messages);
-
-        // $data = $request->validate([
-        //     'title' => ['required', 'array'],
-        //     'title.vi' => ['required', 'string', 'unique:industries,title,'. $industry->id],
-        // ], [
-        //     'title.vi.required' => 'Tiêu đề là bắt buộc.',
-        //     'title.vi.unique' => 'Tiêu đề đã tồn tại.',
-        // ]);
-
         $industry->update([
             'title' => $titles['vi'],
         ]);
         // Thêm phần dịch
-        $industry->industry_translations->delete();
-        //IndustryTranslation::where('industry_id', $industry->id)->delete();
+        IndustryTranslation::where(['industry_id' => $id])->delete();
         if( isset($titles) && is_array($titles) && count($titles) ) {
             foreach( $titles as $key => $title ){
                 IndustryTranslation::create([
@@ -142,7 +120,7 @@ class IndustryController extends Controller
         $this->logActivity('update', Industry::class, $industry);
         return response()->json([
             'message' => 'Cập nhật nhóm ngành nghề thành công',
-            'industry' => new IndustryResource($industry)
+            'industry' => new IndustryResource(Industry::with('industry_translations')->findOrFail($id))
         ]);
     }
 

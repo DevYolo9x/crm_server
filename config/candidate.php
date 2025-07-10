@@ -24,21 +24,25 @@ return [
                     'vi' => 'Họ và tên',
                     'en' => 'Full name',
                     'kr' => '이름',
+                    'ja' => 'フルネーム',
                 ],
                 'birthday' => [
                     'vi' => 'Ngày sinh',
                     'en' => 'Date of birth',
                     'kr' => '생일',
+                    'ja' => '生年月日',
                 ],
                 'gender' => [
                     'vi' => 'Giới tính',
                     'en' => 'Gender',
                     'kr' => '섹스',
+                    'ja' => '性別',
                 ],
                 'address' => [
                     'vi' => 'Địa chỉ hiện tại',
                     'en' => 'Current address',
                     'kr' => '현재 주소',
+                    'ja' => '現住所',
                 ],
             ]
         ],
@@ -52,21 +56,25 @@ return [
                     'vi' => 'Công ty',
                     'en' => 'Company',
                     'kr' => '회사명',
+                    'ja' => '会社',
                 ],
                 'position' => [
                     'vi' => 'Vị trí',
                     'en' => 'Position',
                     'kr' => '직책',
+                    'ja' => '位置',
                 ],
                 'duration' => [
                     'vi' => 'Thời gian',
                     'en' => 'Duration',
                     'kr' => '근무 기간',
+                    'ja' => '間隔',
                 ],
                 'description' => [
                     'vi' => 'Nhiệm vụ',
                     'en' => 'Responsibilities',
                     'kr' => '담당 업무',
+                    'ja' => '責任',
                 ],
             ]
         ],
