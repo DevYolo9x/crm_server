@@ -391,96 +391,6 @@ class CandidateController extends Controller
         ]);
     }
 
-    public function exportTemplateCV(Request $request)
-    {
-        $template = new TemplateProcessor(storage_path('app/templates/template.docx'));
-
-        // Thông tin cá nhân
-        $strengthsHtml = <<<HTML
-        <ul>
-            <li style="margin-bottom: 5px"><strong>Trình độ học vấn:</strong> Tốt nghiệp chuyên ngành Ngôn ngữ Nhật tại Trường Đại học Phương Đông.</li>
-            <li style="margin-bottom: 5px"><strong>Kinh nghiệm chuyên môn:</strong>
-                <ul>
-                    <li>Có 3 năm kinh nghiệm trong lĩnh vực xuất khẩu tại công ty Hàn Quốc.</li>
-                    <li>Am hiểu khai báo hải quan, C/O Form E, VK, VJ, B, EUR1.</li>
-                    <li>Thành thạo theo dõi tiến độ, xử lý phát sinh và thanh toán quốc tế.</li>
-                </ul>
-            </li>
-            <li style="margin-bottom: 5px"><strong>Mức lương mong muốn:</strong> 13.500.000 VND Gross (có thể thương lượng)</li>
-            <li style="margin-bottom: 5px"><strong>Thời gian bắt đầu đi làm:</strong> Sau 1 tuần từ khi nhận được thông báo</li>
-        </ul>
-        HTML;
-
-        $convertedStrength = HtmlToText::convert($strengthsHtml);
-
-        $template->setValue('full_name', 'Trần Xuân Bình');
-        $template->setValue('birthday', '07/11/1998');
-        $template->setValue('gender', 'Nam');
-        $template->setValue('address', 'Hà Nam - Bình Lục');
-        $template->setValue('strengths', '===HTML_BLOCK_STRENGTHS===');
-
-        // Học tập
-        $educations = array(
-            array('education_title' => '9/2017 - 10/2021', 'education_description' => 'Trường Đại học Phương Đông Ngôn ngữ Nhật'),
-            array('education_title' => '30/2022 - 30/2025', 'education_description' => 'Trường Đại học Phương Tây Ngôn ngữ Nhật'),
-        );
-        $template->cloneBlock('block_educations', 0, true, false, $educations);
-
-        // Kỹ năng
-        $skills = [
-            ['skill_title' => 'Tin học', 'skill_description' => 'Am hiểu và sử dụng thành thạo các chức năng nâng cao như định dạng văn bản, tạo bảng biểu, hàm Excel, lọc và phân tích dữ liệu'],
-            ['skill_title' => 'Photoshop / Canva', 'skill_description' => 'Thiết kế cơ bản phục vụ truyền thông, thuyết trình, Thành thạo Google Docs, Sheets, Slides.'],
-        ];
-        $template->cloneBlock('block_skills', 0, true, false, $skills);
-
-        // Kinh nghiệm làm việc
-        $experiences = [
-            [
-                'experience_title' => '06/2021 - Hiện tại',
-                'experience_description' => 'Công ty TNHH Global Sourcenet Thiết Kế Thời Trang Và Nội Thất Khu Vực Long Biên Hà Nội',
-                'experience_tasks' => "● Nhận thông tin và book các lô hàng xuất.<w:br/>● Chuẩn bị hồ sơ chứng từ.<w:br/>● Khai hải quan, làm C/O form E, VK, VJ, B, EUR1...<w:br/>● Làm việc với Forwarder, theo dõi tiến độ và xử lý phát sinh.",
-            ],
-            [
-                'experience_title' => '06/2025',
-                'experience_description' => 'Công ty TNHH Global Sourcenet',
-                'experience_tasks' => "● Nhận thông tin và book các lô hàng xuất.<w:br/>● Chuẩn bị hồ sơ chứng từ.<w:br/>● Khai hải quan, làm C/O form E, VK, VJ, B, EUR1...<w:br/>● Làm việc với Forwarder, theo dõi tiến độ và xử lý phát sinh.",
-            ]
-        ];
-        $template->cloneBlock('block_experiences', 0, true, false, $experiences);
-
-        $fileName = 'cv_loan.docx';
-        $filePath = storage_path("app/exports/$fileName");
-        $template->saveAs($filePath);
-
-        // Thêm đoạn mã html thô vào trong word
-        // Tạo file Word chứa HTML để lấy WordML
-        $htmlWord = new PhpWord();
-        $section = $htmlWord->addSection();
-        Html::addHtml($section, $convertedStrength, false, false);
-        $htmlDocxPath = storage_path('app/exports/html_temp.docx');
-        $htmlWord->save($htmlDocxPath, 'Word2007');
-
-        // Trích XML từ html_temp.docx
-        $zipHtml = new \ZipArchive();
-        $zipHtml->open($htmlDocxPath);
-        $htmlXml = $zipHtml->getFromName('word/document.xml');
-        $zipHtml->close();
-
-        // Lấy phần giữa <w:body>...</w:body>
-        preg_match('/<w:body>(.*?)<\/w:body>/s', $htmlXml, $matches);
-        $htmlWordML = $matches[1] ?? '';
-
-        // Mở file chính và thay thế
-        $zipMain = new \ZipArchive();
-        $zipMain->open($filePath);
-        $mainXml = $zipMain->getFromName('word/document.xml');
-        $mainXml = str_replace('===HTML_BLOCK_STRENGTHS===', $htmlWordML, $mainXml);
-        $zipMain->addFromString('word/document.xml', $mainXml);
-        $zipMain->close();
-
-        return response()->download($filePath)->deleteFileAfterSend(true);
-    }
-
     public function checkExists(Request $request)
     {
         $candidate_id = (int)$request->id;
@@ -536,42 +446,6 @@ class CandidateController extends Controller
             $result['email']['message'] = $exists ? '(Email đã tồn tại)' : '';
         }
         return response()->json($result);
-    }
-
-
-    public function exportTemplateCV1(Request $request)
-    {
-        $template = new TemplateProcessor(storage_path('app/templates/template.docx'));
-
-        // HTML input
-        $html = <<<HTML
-        <ul>
-            <li><strong>Trình độ học vấn:</strong> Tốt nghiệp chuyên ngành Ngôn ngữ Nhật tại Trường Đại học Phương Đông.</li>
-            <li><strong>Kinh nghiệm chuyên môn:</strong>
-                <ul>
-                    <li>Có 3 năm kinh nghiệm trong lĩnh vực xuất khẩu tại công ty Hàn Quốc.</li>
-                    <li>Am hiểu khai báo hải quan, C/O Form E, VK, VJ, B, EUR1.</li>
-                    <li>Thành thạo theo dõi tiến độ, xử lý phát sinh và thanh toán quốc tế.</li>
-                </ul>
-            </li>
-            <li><strong>Mức lương mong muốn:</strong> 13.500.000 VND Gross (có thể thương lượng)</li>
-            <li><strong>Thời gian bắt đầu đi làm:</strong> Sau 1 tuần từ khi nhận được thông báo</li>
-        </ul>
-        HTML;
-
-        // Convert HTML to formatted text
-        $convertedText = HtmlToText::convert($html);
-        $convertedText = str_replace("\n", '</w:t><w:br/><w:t>', $convertedText);
-
-        // Gán vào placeholder ${strengths}
-        $template->setValue('strengths', ($convertedText));
-        
-
-        // Xuất file
-        $filename = 'cv_output.docx';
-        $template->saveAs(storage_path("app/public/$filename"));
-
-        return response()->download(storage_path("app/public/$filename"));
     }
 
     public function exportTemplateBlade(Request $request)
@@ -665,9 +539,11 @@ class CandidateController extends Controller
             return response()->json(['message' => 'Ứng viên không tồn tại'], 404);
         }
         $this->logActivity('delete', Candidate::class, $candidate);
+        CandidateIndustry::where(['candidate_id' => $id])->delete();
+        CandidateTranslation::where(['candidate_id' => $id])->delete();
+        // $candidate->industries->delete();
+        // $candidate->translations->delete();
         $candidate->delete();
-        $candidate->industries->delete();
-        $candidate->translations->delete();
         return response()->json(['message' => 'Xóa ứng viên thành công']);
     }
 
