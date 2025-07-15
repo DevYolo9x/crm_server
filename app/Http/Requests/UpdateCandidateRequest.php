@@ -22,7 +22,7 @@ class UpdateCandidateRequest extends FormRequest
     public function prepareForValidation(): void
     {
         $jsonFields = [
-            'full_name', 'education', 'experience_summary',
+            'full_name', 'education', 'experience_summary', 'gender',
             'industry_id', 'language', 'desired_location'
         ];
 
@@ -49,6 +49,8 @@ class UpdateCandidateRequest extends FormRequest
                 'required', 'email', 'max:255',
                 Rule::unique('candidates', 'email')->ignore($candidateId),
             ],
+            'birthday' => ['required'],
+            'location' => ['required'],
             'current_location' => ['required'],
             'desired_location' => ['required', 'array'],
             'language_other' => ['nullable', 'string', 'max:255'],
@@ -57,6 +59,7 @@ class UpdateCandidateRequest extends FormRequest
         $languages = array_keys(config('languages'));
         foreach ($languages as $lang) {
             $rules["full_name.$lang"] = 'required|string|max:255';
+            $rules["gender.$lang"] = 'required|string|max:255';
 
             $rules["industry_id.$lang"] = 'required|array|min:1';
             $rules["industry_id.$lang.*.id"] = 'required|integer|exists:industries,id';
@@ -81,22 +84,29 @@ class UpdateCandidateRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'full_name.*.required' => 'Tên đầy đủ [:attribute] là bắt buộc.',
-            'industry_id.*.required' => 'Ngành nghề [:attribute] là bắt buộc.',
-            'industry_id.*.min' => 'Phải chọn ít nhất 1 ngành nghề [:attribute].',
-            'industry_id.*.*.id.required' => 'ID ngành nghề [:attribute] là bắt buộc.',
-            'industry_id.*.*.id.exists' => 'ID ngành nghề [:attribute] không hợp lệ.',
-            'industry_id.*.*.title.required' => 'Tên ngành nghề [:attribute] là bắt buộc.',
-            'education.*.required' => 'Trình độ học vấn [:attribute] là bắt buộc.',
-            'education.*.id.required' => 'ID học vấn [:attribute] là bắt buộc.',
-            'education.*.name.required' => 'Tên học vấn [:attribute] là bắt buộc.',
-            'language.*.required' => 'Ngôn ngữ [:attribute] là bắt buộc.',
-            'language.*.id.required' => 'ID ngôn ngữ [:attribute] là bắt buộc.',
-            'language.*.name.required' => 'Tên ngôn ngữ [:attribute] là bắt buộc.',
-            'file_cv.*.cv_no_contact.file.mimes' => 'File CV không có thông tin liên hệ [:attribute] không đúng định dạng.',
-            'file_cv.*.cv_no_contact.file.max' => 'File CV không có thông tin liên hệ [:attribute] không vượt quá 10MB.',
-            'file_cv.*.cv_with_contact.file.mimes' => 'File CV có thông tin liên hệ [:attribute] không đúng định dạng.',
-            'file_cv.*.cv_with_contact.file.max' => 'File CV có thông tin liên hệ [:attribute] không vượt quá 10MB.',
+            'location.required' => 'Chỗ ở hiện tại là bắt buộc.',
+            'birthday.required' => 'Ngày sinh là bắt buộc.',
+            'full_name.*.required' => 'Tên đầy đủ là bắt buộc.',
+            'phone.required' => 'Số điện thoại là bắt buộc.',
+            'email.required' => 'Email là bắt buộc.',
+            'gender.*.required' => 'Giới tính là bắt buộc.',
+            
+            'desired_location.required' => 'Khu vực mong muốn làm việc là bắt buộc.',
+            'industry_id.*.required' => 'Ngành nghề là bắt buộc.',
+            'industry_id.*.min' => 'Phải chọn ít nhất 1 ngành nghề.',
+            'industry_id.*.*.id.required' => 'ID ngành nghề là bắt buộc.',
+            'industry_id.*.*.id.exists' => 'ID ngành nghề không hợp lệ.',
+            'industry_id.*.*.title.required' => 'Tên ngành nghề là bắt buộc.',
+            'education.*.required' => 'Trình độ học vấn là bắt buộc.',
+            'education.*.id.required' => 'ID học vấn là bắt buộc.',
+            'education.*.name.required' => 'Tên học vấn là bắt buộc.',
+            'language.*.required' => 'Ngôn ngữ là bắt buộc.',
+            'language.*.id.required' => 'ID ngôn ngữ là bắt buộc.',
+            'language.*.name.required' => 'Tên ngôn ngữ là bắt buộc.',
+            'file_cv.*.cv_no_contact.file.mimes' => 'File CV không có thông tin liên hệ không đúng định dạng.',
+            'file_cv.*.cv_no_contact.file.max' => 'File CV không có thông tin liên hệ không vượt quá 10MB.',
+            'file_cv.*.cv_with_contact.file.mimes' => 'File CV có thông tin liên hệ không đúng định dạng.',
+            'file_cv.*.cv_with_contact.file.max' => 'File CV có thông tin liên hệ không vượt quá 10MB.',
         ];
     }
 }

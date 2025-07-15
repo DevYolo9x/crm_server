@@ -261,12 +261,12 @@ class CandidateController extends Controller
 
     public function update(UpdateCandidateRequest $request, $id)
     {
-        //return response()->json($request->birthday);
+        //return response()->json($request);
         $timeEducation = json_decode($request->time_education, true);
         $skills = json_decode($request->skills, true);
         $workExperience = json_decode($request->work_experience, true);
         $strength = json_decode($request->currentStrength, true);
-        $gender = json_decode($request->gender, true);
+        $gender = ($request->gender);
         //return response()->json($gender);
 
         $user = auth()->user();

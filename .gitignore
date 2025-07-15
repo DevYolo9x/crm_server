@@ -3,6 +3,12 @@
 /public/build
 /public/hot
 /public/storage
+/storage/*
+!/storage/app/
+!/storage/app/exports/
+!/storage/app/exports/**
+!/storage/app/templates/
+!/storage/app/templates/**
 /storage/*.key
 /vendor
 .env.backup
