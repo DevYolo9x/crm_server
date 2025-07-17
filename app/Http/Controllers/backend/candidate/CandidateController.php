@@ -142,7 +142,7 @@ class CandidateController extends Controller
         $skills = json_decode($request->skills, true);
         $workExperience = json_decode($request->work_experience, true);
         $strength = json_decode($request->currentStrength, true);
-        $gender = json_decode($request->gender, true);
+        $gender = ($request->gender);
 
         $languages = array_keys(config('languages'));
         $validated = $request->validated(); // Validate dữ liệu
