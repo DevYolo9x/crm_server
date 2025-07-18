@@ -78,7 +78,7 @@ Route::group(['middleware' => ['auth:api']], function () {
     Route::prefix('customer-groups')->group(function () {
         Route::get('/', [CustomerGroupController::class, 'index'])->middleware('can:customer_groups_index');
         Route::post('/', [CustomerGroupController::class, 'store'])->middleware('can:customer_groups_create');
-        Route::post('/{id}', [CustomerGroupController::class, 'update'])->middleware('can:customer_groups_edit'); // POST để hỗ trợ file upload
+        Route::put('/{id}', [CustomerGroupController::class, 'update'])->middleware('can:customer_groups_edit'); // POST để hỗ trợ file upload
         Route::delete('/{id}', [CustomerGroupController::class, 'destroy'])->middleware('can:customer_groups_destroy');
         Route::get('/{id}/show', [CustomerGroupController::class, 'show']);
     });
